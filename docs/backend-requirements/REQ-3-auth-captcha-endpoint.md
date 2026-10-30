@@ -1,6 +1,6 @@
 # [REQ-3] `/auth/captcha` 端点占位未实现（调用 404）
 
-> 前端（aieducenter-admin-web）→ 后端（aieducenter-admin）需求。低优先级。
+> 前端（semgravio-admin-web）→ 后端（semgravio-admin）需求。低优先级。
 
 ## 现状
 `/api/admin/auth/captcha` 已列在 `application.yml` 的 Sa-Token `exclude-path-patterns`（放行名单）里，但后端无任何 Controller 实现（`AdminAuthController` 只有 `login`/`logout`/`current`/`current/password` 四个端点）。前端调用会 **404**。

@@ -8,7 +8,7 @@ set -e
 # ═══════════════════════════════════════════════════════════════
 SERVER_USER="root"
 SERVER_HOST="43.140.211.9"
-SERVER_PATH="/opt/hcy/aieducenter_admin_web"
+SERVER_PATH="/opt/hcy/semgravio_admin_web"
 SERVER_PASSWORD="Hcy@20260327"
 # ═══════════════════════════════════════════════════════════════
 

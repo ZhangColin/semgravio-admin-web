@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-运营人员需要在统一后台中管理「应用」——创建应用、维护基本信息、管理 API Key 和 SSO Client 配置。后端已通过 Flyway V10 种子化菜单和 BFF 接口（admin [#25](https://github.com/ZhangColin/aieducenter-admin/issues/25)），前端需提供完整的列表-创建-详情闭环。
+运营人员需要在统一后台中管理「应用」——创建应用、维护基本信息、管理 API Key 和 SSO Client 配置。后端已通过 Flyway V10 种子化菜单和 BFF 接口（admin [#25](https://github.com/ZhangColin/semgravio-admin/issues/25)），前端需提供完整的列表-创建-详情闭环。
 
 ## Solution
 
@@ -128,8 +128,8 @@ Keys under `page.manage.app.*` (page content) and `route.app` / `route.app_list`
 
 ## Further Notes
 
-- 后端 spec: https://github.com/ZhangColin/aieducenter-admin/issues/25
-- 依赖 app-registry: ZhangColin/aieducenter-app-registry#14 / #15
+- 后端 spec: https://github.com/ZhangColin/semgravio-admin/issues/25
+- 依赖 app-registry: ZhangColin/semgravio-app-registry#14 / #15
 - 创建页面后必须运行 `pnpm gen-route` 生成 elegant-router 路由定义和类型
 - 后端 `AppDetailResponse` 中 `apiKey`/`ssoClient` 为 `@JsonInclude(NON_NULL)`——首次创建后 ssoClient 为 null，前端需处理空态
 - `appCode` = `apiKey` 是后端保证的一一对应关系，前端作为只读展示即可

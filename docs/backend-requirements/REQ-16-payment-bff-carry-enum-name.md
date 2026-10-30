@@ -1,8 +1,8 @@
 # REQ-16：payment BFF 未透传枚举 `*Name`（statusName / payModeName …）→ 前端列表/详情/仪表盘显示原始 code
 
-> 发现于：admin-web issue [#47](https://github.com/ZhangColin/aieducenter-admin-web/issues/47) 仪表盘 T6（2026-08-12）
+> 发现于：admin-web issue [#47](https://github.com/ZhangColin/semgravio-admin-web/issues/47) 仪表盘 T6（2026-08-12）
 > 关联：平台统一枚举范式（SystemManage user/role/menu 均带后端序列化的 `statusName`）；payment 域枚举为 `BaseEnum(code, name)`
-> 状态：**待后端处理**（2026-08-12 提后端 issue [#50](https://github.com/ZhangColin/aieducenter-admin/issues/50)）
+> 状态：**待后端处理**（2026-08-12 提后端 issue [#50](https://github.com/ZhangColin/semgravio-admin/issues/50)）
 
 ## 现象
 

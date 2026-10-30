@@ -1,7 +1,7 @@
 # REQ-7 — 角色分配权限/菜单、用户分配角色全部 400（关联实体 id 生成策略与 DDL 冲突）
 
 > 来源：admin-web T3（角色管理页）E2E 验证发现（2026-07-29）。
-> 前端 ticket：ZhangColin/aieducenter-admin-web#4。
+> 前端 ticket：ZhangColin/semgravio-admin-web#4。
 > 状态：**已提后端**（issue 见文末）。
 
 ## 现象

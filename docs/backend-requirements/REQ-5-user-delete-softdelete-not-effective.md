@@ -1,7 +1,7 @@
 # REQ-5 — 用户删除软删未生效（查询不过滤 deleted）
 
 > 来源：admin-web T2（用户管理页）E2E 验证发现（2026-07-29）。
-> 前端 ticket：ZhangColin/aieducenter-admin-web#3。
+> 前端 ticket：ZhangColin/semgravio-admin-web#3。
 > 状态：**待提后端**（本文件为前端侧需求记录；尚未提交后端 issue）。
 
 ## 现象
@@ -40,7 +40,7 @@ curl -s "localhost:8081/api/admin/users/$ID" -H "Authorization: Bearer $TOK"
 
 > ⚠️ 复现脚本中 `password` 用占位符；内置超管口令不在本文档明文出现（避免随仓库 / issue 泄露）。
 
-## 读码定位（`aieducenter-admin` 仓库）
+## 读码定位（`semgravio-admin` 仓库）
 
 - `AdminUserManagementAppService.delete(id)` → `adminUserRepository.delete(entity)`。
 - 框架 `BaseRepositoryImpl.delete` 走 `entity.markAsDeleted()`（`AdminUser#markAsDeleted` → `super.markAsDeleted()`），属**逻辑删**：实测删除后 `updatedAt` 确有变化，说明 `deleted` 标志被置位。

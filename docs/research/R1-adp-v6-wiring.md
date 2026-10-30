@@ -1,15 +1,15 @@
-> ⚠️ **SUPERSEDED（2026-07-31）**：此为已**放弃**的 Ant Design Pro v6 迁移可行性调研。中途改用 **Soybean Admin v2.2**（脚手架见 #9、T1 登录闭环见 #12）。本文仅作历史留存，**不代表当前技术栈**（文中 Next.js / antd-pro / Zustand / middleware 等均作废）。当前栈见 `CLAUDE.md` / `CONTEXT.md`。
+> ⚠️ **SUPERSEDED（2026-07-31）**：此为已**放弃**的 Ant Design Pro v6 迁移可行性调研。中途改用 **Soybean Admin v2.2**（脚手架见 #9、T1 登录闭环见 #12）。本文仅作历史留存，**不代表当前技术栈**（文中 Next.js / antd-pro / Zustand / middleware 等均作废）。当前栈见 `CLAUDE.md` / `GLOSSARY.md`。
 
 # R1 — ant-design-pro v6 → Sa-Token 后端：对接可行性报告
 
-> research ticket: https://github.com/ZhangColin/aieducenter-admin-web/issues/7
+> research ticket: https://github.com/ZhangColin/semgravio-admin-web/issues/7
 > 产出时间：2026-07-30。版本基准（已核对 master package.json）：ant-design-pro **v6.0.0** / `@umijs/max ^4.6.25` (Umi 4) / `@ant-design/pro-components 3.1.2-0` / `antd ^6.2.2` / `react ^19.2.4` / Tailwind v4 / React Query / Biome（不再是 ESLint）。
 
 ## ⚠️ 最重要的前置发现
 
 研究目标是"ant-design-pro v6 内置的 auth/permission/menu/request 机制"，但 **v6 的这些内置机制几乎全部是 Umi Max 的运行时插件**（`getInitialState`、access plugin、request plugin、layout runtime config、`patchClientRoutes`），**它们只有在用 @umijs/max 脚手架时才存在**。
 
-而**本项目是 Next.js 15（App Router）**（见 CLAUDE.md 与 CONTEXT.md 不变式 #3）。这导致两条互斥路径：
+而**本项目是 Next.js 15（App Router）**（见 CLAUDE.md 与 GLOSSARY.md 不变式 #3）。这导致两条互斥路径：
 
 - **路径 A（迁移到 Umi Max / ant-design-pro v6 脚手架）**：换技术栈，得到全部"内置机制"。代价 = 重写路由/反代/守卫（现 middleware.ts 体系作废），Umi 4 是 webpack 非原生 RSC。已写完的 RBAC 核心（T1–T4）基本重做。
 - **路径 B（留在 Next.js，只用 `@ant-design/pro-components` 作为纯组件库）**：`<ProLayout>`、`<ProTable>`、`LoginForm` 等组件**框架无关**，可在 Next.js 里直接用；但 `getInitialState`/access/request/menu.request 这些"机制"**拿不到**——必须用本项目已有的 Zustand store + middleware + http-client 自己实现等价逻辑（实际上已经实现，见不变式 #3）。

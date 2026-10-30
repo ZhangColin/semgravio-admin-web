@@ -1,6 +1,6 @@
 # [REQ-1] MenuResponse 补充 `type` 字段（区分 GROUP / MENU / DIVIDER）
 
-> 前端（aieducenter-admin-web）→ 后端（aieducenter-admin）需求。按 Matt issue 规范提交到后端仓库。
+> 前端（semgravio-admin-web）→ 后端（semgravio-admin）需求。按 Matt issue 规范提交到后端仓库。
 
 ## 背景
 统一后台前端 sidebar 采用「双面板」交互：一级图标栏（分组）+ 二级菜单面板（叶子菜单）。前端需按 `/auth/current` 返回的 `menus` 树渲染，但当前 `MenuResponse` 没有 `type` 字段，前端无法区分一个节点是**分组容器**、**可路由叶子菜单**、还是**分隔线**，无法正确渲染双面板层级。

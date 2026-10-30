@@ -43,14 +43,14 @@ echo -e "${YELLOW}等待服务启动...${NC}"
 sleep 15
 
 # 通过 docker 检查容器健康状态
-if docker inspect --format='{{.State.Health.Status}}' aieducenter-admin-web 2>/dev/null | grep -q healthy; then
+if docker inspect --format='{{.State.Health.Status}}' semgravio-admin-web 2>/dev/null | grep -q healthy; then
   echo ""
   echo -e "${GREEN}========================================${NC}"
   echo -e "${GREEN}   ✓ 服务已启动 (healthy)${NC}"
   echo -e "${GREEN}========================================${NC}"
   echo ""
   echo "常用命令："
-  echo "  查看日志: docker logs -f aieducenter-admin-web"
+  echo "  查看日志: docker logs -f semgravio-admin-web"
   echo "  停止服务: $COMPOSE down"
   echo "  重启服务: $COMPOSE restart"
   echo ""
@@ -58,21 +58,21 @@ else
   # 容器可能还在启动中，再等一会
   echo -e "${YELLOW}⚠ 等待健康检查...${NC}"
   sleep 20
-  if docker inspect --format='{{.State.Health.Status}}' aieducenter-admin-web 2>/dev/null | grep -q healthy; then
+  if docker inspect --format='{{.State.Health.Status}}' semgravio-admin-web 2>/dev/null | grep -q healthy; then
     echo ""
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}   ✓ 服务已启动 (healthy)${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo ""
     echo "常用命令："
-    echo "  查看日志: docker logs -f aieducenter-admin-web"
+    echo "  查看日志: docker logs -f semgravio-admin-web"
     echo "  停止服务: $COMPOSE down"
     echo "  重启服务: $COMPOSE restart"
     echo ""
   else
     echo -e "${RED}✗ 服务未就绪${NC}"
-    echo -e "${YELLOW}  状态: $(docker inspect --format='{{.State.Health.Status}}' aieducenter-admin-web 2>/dev/null || echo '未知')${NC}"
-    echo -e "${YELLOW}  查看日志: docker logs aieducenter-admin-web${NC}"
+    echo -e "${YELLOW}  状态: $(docker inspect --format='{{.State.Health.Status}}' semgravio-admin-web 2>/dev/null || echo '未知')${NC}"
+    echo -e "${YELLOW}  查看日志: docker logs semgravio-admin-web${NC}"
     exit 1
   fi
 fi

@@ -1,7 +1,7 @@
 # REQ-13：新增「我的导航」端点 `GET /menus/my` + `/auth/current` 移除 menus
 
-> 前端仓库 spec：https://github.com/ZhangColin/aieducenter-admin-web/issues/20
-> 背景决策：admin-web #11（动态菜单适配，CLOSED）+ CONTEXT.md「2026-08-01 动态菜单 grilling」
+> 前端仓库 spec：https://github.com/ZhangColin/semgravio-admin-web/issues/20
+> 背景决策：admin-web #11（动态菜单适配，CLOSED）+ GLOSSARY.md「2026-08-01 动态菜单 grilling」
 
 ## 背景
 

@@ -1,14 +1,14 @@
 # REQ-8 ~ REQ-11 — 后端对齐 Soybean admin-web 系统管理完整功能（用户/角色/菜单）
 
-> ⚠️ **2026-07-31 更新**：**REQ-12（操作人审计 `AuditorAware`）已撤回**——经核实非 Soybean UI 需求（example 用户/角色/菜单三列表均不渲染审计字段）。审计整体拎为单独待办 admin-web[#19](https://github.com/ZhangColin/aieducenter-admin-web/issues/19)（等系统管理功能做完后前后端共审），审计列 ticket #18 已关，前端不动 `CommonRecord`。下文 REQ-12 章节及各 REQ 表里的审计行均作废。
+> ⚠️ **2026-07-31 更新**：**REQ-12（操作人审计 `AuditorAware`）已撤回**——经核实非 Soybean UI 需求（example 用户/角色/菜单三列表均不渲染审计字段）。审计整体拎为单独待办 admin-web[#19](https://github.com/ZhangColin/semgravio-admin-web/issues/19)（等系统管理功能做完后前后端共审），审计列 ticket #18 已关，前端不动 `CommonRecord`。下文 REQ-12 章节及各 REQ 表里的审计行均作废。
 
-> 前端仓 `aieducenter-admin-web`（Soybean Admin v2.2 / Vue3）→ 后端仓 `aieducenter-admin`（Spring Boot 3.4 / Sa-Token / PostgreSQL）。
+> 前端仓 `semgravio-admin-web`（Soybean Admin v2.2 / Vue3）→ 后端仓 `semgravio-admin`（Spring Boot 3.4 / Sa-Token / PostgreSQL）。
 >
 > **本轮决策原则（用户 2026-07-31 拍板，覆盖此前一切相反记录）**：
 > 1. Soybean `example` 的系统管理模块（用户/角色/菜单）= **功能规约，完整移植**。它怎么实现，前端就怎么要。
 > 2. 后端**只保留「通用结构」层规范**：`ApiResponse{code,message,data,requestId,errors}` 外壳、`PageResponse{items,total,page,size}` 分页壳、`/api/admin/...` 路径风格、Long→字符串、枚举整数序列化（`BaseEnumSerializer`）、错误走 HTTP 非 2xx + `onError`。**这些不改**。
 > 3. **其余一切功能字段/操作/行为，后端缺什么补什么、字段不对就改字段。** 不再做「前端裁掉 Soybean 某字段去将就后端」的反向适配。
-> 4. 这**推翻** CONTEXT.md 旧决策「菜单管理页重写、不移植，按 MenuResponse 重写」（L116-117）——菜单改为完整移植 Soybean 的路由生成器模型，后端扩字段支撑。
+> 4. 这**推翻** GLOSSARY.md 旧决策「菜单管理页重写、不移植，按 MenuResponse 重写」（L116-117）——菜单改为完整移植 Soybean 的路由生成器模型，后端扩字段支撑。
 
 > 本文档取代先前「REQ-8..13 nav-tree/裁字段」草稿（该草稿基于已被覆盖的反向适配思路，作废）。
 

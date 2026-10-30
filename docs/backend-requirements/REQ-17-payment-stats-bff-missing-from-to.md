@@ -1,8 +1,8 @@
 # REQ-17：payment 统计 3 端点（overview/gateway-health/operations-audit）BFF 未转发必填 `from/to` → 400
 
-> 发现于：admin-web issue [#47](https://github.com/ZhangColin/aieducenter-admin-web/issues/47) 仪表盘 T6（2026-08-12）
+> 发现于：admin-web issue [#47](https://github.com/ZhangColin/semgravio-admin-web/issues/47) 仪表盘 T6（2026-08-12）
 > 关联：admin T7 stats tier-1（`.scratch/payment-admin/issues/T7-stats-tier1.md`）；payment `StatsApiV1Controller`
-> 状态：**待后端处理**（2026-08-12 提后端 issue [#51](https://github.com/ZhangColin/aieducenter-admin/issues/51)）
+> 状态：**待后端处理**（2026-08-12 提后端 issue [#51](https://github.com/ZhangColin/semgravio-admin/issues/51)）
 
 ## 现象
 

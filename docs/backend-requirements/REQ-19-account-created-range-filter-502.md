@@ -1,6 +1,6 @@
 # REQ-19：account 列表 createdFrom/createdTo 契约内 date-time 透传 502
 
-由 admin-web [#52](https://github.com/ZhangColin/aieducenter-admin-web/issues/52)（平台账号 E2E 联调）发现提出。
+由 admin-web [#52](https://github.com/ZhangColin/semgravio-admin-web/issues/52)（平台账号 E2E 联调）发现提出。
 
 ## 现象
 

@@ -1,8 +1,8 @@
 # REQ-14：角色删除「使用中」检查未过滤已软删用户 → 角色无法删除
 
-> 发现于：admin-web issue [#23](https://github.com/ZhangColin/aieducenter-admin-web/issues/23) E2E 测试数据清理（2026-08-02）
+> 发现于：admin-web issue [#23](https://github.com/ZhangColin/semgravio-admin-web/issues/23) E2E 测试数据清理（2026-08-02）
 > 同类先例：REQ-5（用户/角色软删查询不过滤 deleted，已修复）——本条是软删过滤在「角色删除守卫」路径上的漏网
-> 状态：**后端处理中**（已提后端 issue [#24](https://github.com/ZhangColin/aieducenter-admin/issues/24)（2026-08-02）；2026-08-03 用户确认后端方向——尽量放弃软删除，即使保留也由后端彻底处理）
+> 状态：**后端处理中**（已提后端 issue [#24](https://github.com/ZhangColin/semgravio-admin/issues/24)（2026-08-02）；2026-08-03 用户确认后端方向——尽量放弃软删除，即使保留也由后端彻底处理）
 
 ## 现象
 
@@ -30,7 +30,7 @@ curl -s -X DELETE $BASE/roles/$ROLE_ID -H "$H"
 
 ## 定位
 
-`AdminRoleRepository.isUsedByAnyAdmin`（`src/main/java/com/aieducenter/admin/domain/repository/AdminRoleRepository.java:52`）：
+`AdminRoleRepository.isUsedByAnyAdmin`（`src/main/java/com/semgravio/admin/domain/repository/AdminRoleRepository.java:52`）：
 
 ```java
 @Query("SELECT COUNT(ur) > 0 FROM AdminUserRole ur WHERE ur.roleId = :roleId")

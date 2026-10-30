@@ -3,7 +3,7 @@ declare namespace Api {
    * namespace Payment
    *
    * backend api module: 支付管理（admin 后端 `/api/admin/payment/**`，BFF 透传 payment 能力域）。
-   * 独立限界上下文（后端 `com.aieducenter.admin.payment` 子包），体量最大，不并入 SystemManage。
+   * 独立限界上下文（后端 `com.semgravio.admin.payment` 子包），体量最大，不并入 SystemManage。
    *
    * 分页约定同 SystemManage：请求 `page` **1-based**、响应 `PageResponse{ items, total, page(1-based), size }`。
    *

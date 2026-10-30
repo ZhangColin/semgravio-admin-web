@@ -1,6 +1,6 @@
 # [REQ-4] 用户接口补充 roleIds（用于「分配角色」回显）
 
-> 前端（aieducenter-admin-web）→ 后端（aieducenter-admin）需求。中优先级。
+> 前端（semgravio-admin-web）→ 后端（semgravio-admin）需求。中优先级。
 
 ## 背景
 前端「用户管理 → 分配角色」弹窗需要回显该用户当前已分配的角色，但当前 `AdminUserResponse`（`GET /users` 列表与 `GET /users/{id}` 详情）均不含 `roleIds`/`roleCodes`，前端无法回显，只能做「全量覆盖无回显」的分配，体验差且易误操作。

@@ -2,7 +2,7 @@
 
 # R2 — Ant Design Pro v6 ↔ admin 后端 契约适配审计
 
-> research ticket: https://github.com/ZhangColin/aieducenter-admin-web/issues/8
+> research ticket: https://github.com/ZhangColin/semgravio-admin-web/issues/8
 > 产出时间：2026-07-30。为迁移到 ant-design-pro v6（@umijs/max）的后端契约适配审计。
 
 ## 背景：判定"expects"的口径
@@ -68,5 +68,5 @@ Ant Design Pro v6 的"默认期望"分两层，必须区分，否则会误判 ga
 
 ## 本项目基线文件
 
-- `CONTEXT.md`（后端契约快照 §「接口清单」「关键 DTO」）
+- `GLOSSARY.md`（后端契约快照 §「接口清单」「关键 DTO」）
 - `src/lib/admin-api.ts`（现有 TS 类型 + Long→string 处理，迁移后类型沿用）
