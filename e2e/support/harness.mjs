@@ -1,5 +1,5 @@
 /**
- * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，#88 扩模型供应商域，共用 seam）——page.route mock + 断言汇总。
+ * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，#88 扩模型供应商域，#89 扩付款核验域，共用 seam）——page.route mock + 断言汇总。
  *
  * mock 派生自 admin :8081 `/v3/api-docs`（fixtures 见各域 support/*-fixtures.mjs）；
  * 错误信封按 AiplatformUpstreamErrorAdvice 形状：HTTP 状态照抄 provider、
@@ -55,8 +55,8 @@ export async function waitForMessage(page, predicate, timeoutMs = 10000) {
  * 安装 /proxy-default/** 全量 mock（auth / menus.my / aiplatform 各域）。
  *
  * @param page playwright page
- * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract?, modelProvider? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
- * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean, failNextProviderDelete: boolean, failNextRemotePull: boolean, failNextTierCreate: boolean}}}
+ * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract?, modelProvider?, payment? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
+ * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean, failNextProviderDelete: boolean, failNextRemotePull: boolean, failNextTierCreate: boolean, failNextPaymentNodes: boolean, failNextPaymentVerify: boolean}}}
  *          calls=拦截到的请求流水（断言查询参数用）；state.failNext*＝下一次对应写抛业务错误信封
  *          （quote/workspaceWrite/reprice 抛 409，material 抛 400/404，skill 按动作族抛 502/400/409/409/400，
  *          skillDraftPromote 抛 409 SKL_016、skillDraftReject 抛 400 SKL_018，
@@ -64,7 +64,9 @@ export async function waitForMessage(page, predicate, timeoutMs = 10000) {
  *          skillPrecheck 抛 400 SKL_011＝预检失败注入（错误族与 PUT 指派同源）；
  *          contractWrite 抛 409 ORD_027 双签门禁竞态——advance 末边可观测门控的兜底透传靶；
  *          providerDelete 抛 409 PRJ_072 被档位引用、remotePull 抛 502 PRJ_077 上游不可用、
- *          tierCreate 抛 409 PRJ_068 撞名——B 批 T1 透传 toast 断言靶）
+ *          tierCreate 抛 409 PRJ_068 撞名——B 批 T1 透传 toast 断言靶；
+ *          paymentNodes 抛 409 ORD_044 重录窗口、paymentVerify 抛 400 ORD_041 录入无效——
+ *          A 批 T2 写失败代表样 409/400 透传 toast 断言靶）
  */
 export async function installAiplatformMocks(page, fixtures) {
   const calls = [];
@@ -86,7 +88,9 @@ export async function installAiplatformMocks(page, fixtures) {
     failNextContractWrite: false,
     failNextProviderDelete: false,
     failNextRemotePull: false,
-    failNextTierCreate: false
+    failNextTierCreate: false,
+    failNextPaymentNodes: false,
+    failNextPaymentVerify: false
   };
 
   const json = (route, status, body) =>
@@ -653,6 +657,133 @@ export async function installAiplatformMocks(page, fixtures) {
     return { receipt: { ...fixtures.contract.CONTRACT_DETAILS[created.id].contract } };
   }
 
+  /* ---- 付款核验域变异（#89；provider BackofficePayment 聚合镜像——plan/trails 就地变异，
+   * 回读 detail 均拿到新事实；守卫族自然裁决：ORD_036 无计划/ORD_037 节点无/ORD_038 状态守卫/
+   * ORD_039 录入无效/ORD_041 核验无效/ORD_042 打回依据/ORD_044 重录窗口/ORD_045 凭证归属；
+   * **verify 累计核到账模拟**＝全额判定 provider 侧镜像（settled≥amount 自动转已到账、不足回
+   * 待支付不清零；percentage/totalAmount/totalSettled 随行重算）---- */
+
+  /** 计划占比/总额重算（整组替换与录入序派生的展示换算面）。 */
+  function recalcPaymentPlan(plan) {
+    const total = plan.nodes.reduce((sum, node) => sum + Number(node.amount), 0);
+    plan.totalAmount = String(total);
+    plan.nodes.forEach(node => {
+      node.percentage = total > 0 ? Math.round((Number(node.amount) / total) * 100) : null;
+      node.remainingAmount = String(Math.max(0, Number(node.amount) - Number(node.settledAmount)));
+    });
+    plan.totalSettled = String(plan.nodes.reduce((sum, node) => sum + Number(node.settledAmount), 0));
+    return plan;
+  }
+
+  /** 留痕行 unshift（新→旧；操作者 E2E Mock 模拟 X-User 头落痕）。 */
+  function pushPaymentTrail(detailOfPlan, nodeId, action, from, to, actualAmount, arrivedAt, voucherId, basis) {
+    detailOfPlan.trails.unshift({
+      id: fixtures.payment.nextTrailId(),
+      nodeId,
+      action,
+      actionName: fixtures.payment.PAYMENT_ACTION_NAMES[action],
+      fromStatus: from,
+      toStatus: to,
+      actualAmount,
+      arrivedAt,
+      voucherId,
+      basis,
+      operatorId: '1',
+      operatorName: 'E2E Mock',
+      createdAt: fixtures.payment.PAYMENT_ACTION_AT
+    });
+  }
+
+  /** 节点录入（整组替换）：录入无效 ORD_039 自然裁决；重录唯一窗口＝支付活动未开始（任一
+   * 节点非待支付/有凭证/有留痕即 409 ORD_044——**可观测推导的 mock 镜像**，注入之外的自然靶）。 */
+  function applyPaymentNodes(detailOfPlan, command) {
+    const plan = detailOfPlan.plan;
+    const started =
+      plan.nodes.some(node => node.status !== 1 || node.vouchers.length > 0) || detailOfPlan.trails.length > 0;
+    if (started) return { error: [409, 5044, '支付活动已开始，不可重录付款节点（ORD_044）'] };
+    const specs = command.nodes ?? [];
+    if (
+      specs.length === 0 ||
+      specs.some(spec => !spec.name || String(spec.name).trim() === '' || !Number.isFinite(spec.amount) || spec.amount <= 0)
+    ) {
+      return { error: [400, 5039, '节点录入无效：至少一条、名称必填、金额为正（ORD_039）'] };
+    }
+    plan.nodes = specs.map((spec, i) => ({
+      id: fixtures.payment.nextEnteredNodeId(),
+      seq: i + 1,
+      name: String(spec.name).trim(),
+      amount: String(spec.amount),
+      percentage: null,
+      status: 1,
+      statusName: fixtures.payment.PAYMENT_NODE_STATUS_NAMES[1],
+      remarkCode: `${plan.contractNo}-K${i + 1}`,
+      kickoffGate: Boolean(spec.kickoffGate),
+      channelType: 1,
+      channelTypeName: '线下转账',
+      channelRefNo: null,
+      settledAmount: '0',
+      remainingAmount: String(spec.amount),
+      receivedAt: null,
+      vouchers: []
+    }));
+    return { receipt: { ...recalcPaymentPlan(plan) } };
+  }
+
+  /** 到账核验（provider 全额判定镜像）：settled 累积→足额转已到账（receivedAt＝实到时间）/
+   *  不足回待支付不清零；渠道流水号落值；留痕 append。守卫：ORD_038/041/045 自然裁决。 */
+  function applyPaymentVerify(detailOfPlan, nodeId, command) {
+    const plan = detailOfPlan.plan;
+    const node = plan.nodes.find(n => n.id === nodeId);
+    if (!node) return { error: [404, 5037, '付款节点不存在或不属活跃计划（ORD_037）'] };
+    if (node.status !== 4) return { error: [409, 5038, '仅线下转账待核验态可核验（ORD_038）'] };
+    if (!Number.isFinite(command.actualAmount) || command.actualAmount <= 0 || !command.arrivedAt) {
+      return { error: [400, 5041, '核验录入无效：实到金额须为正、实到时间必填（ORD_041）'] };
+    }
+    if (command.voucherId && !node.vouchers.some(v => v.id === command.voucherId)) {
+      return { error: [404, 5045, '关联凭证不存在或不属该节点（ORD_045）'] };
+    }
+    const from = node.status;
+    const settled = Number(node.settledAmount) + command.actualAmount;
+    node.settledAmount = String(settled);
+    if (settled >= Number(node.amount)) {
+      node.status = 5;
+      node.statusName = fixtures.payment.PAYMENT_NODE_STATUS_NAMES[5];
+      node.receivedAt = command.arrivedAt;
+    } else {
+      node.status = 1;
+      node.statusName = fixtures.payment.PAYMENT_NODE_STATUS_NAMES[1];
+    }
+    if (command.channelRefNo) node.channelRefNo = command.channelRefNo;
+    pushPaymentTrail(
+      detailOfPlan,
+      nodeId,
+      1,
+      from,
+      node.status,
+      String(command.actualAmount),
+      command.arrivedAt,
+      command.voucherId ?? null,
+      command.basis ?? null
+    );
+    return { receipt: { ...recalcPaymentPlan(plan) } };
+  }
+
+  /** 打回：回待支付、累计不动；依据必填 ORD_042 自然裁决（前端必填先行——此为 wire 诚实兜底）。 */
+  function applyPaymentReject(detailOfPlan, nodeId, command) {
+    const plan = detailOfPlan.plan;
+    const node = plan.nodes.find(n => n.id === nodeId);
+    if (!node) return { error: [404, 5037, '付款节点不存在或不属活跃计划（ORD_037）'] };
+    if (node.status !== 4) return { error: [409, 5038, '仅线下转账待核验态可打回（ORD_038）'] };
+    if (!command.basis || String(command.basis).trim() === '') {
+      return { error: [400, 5042, '打回依据必填（ORD_042）'] };
+    }
+    const from = node.status;
+    node.status = 1;
+    node.statusName = fixtures.payment.PAYMENT_NODE_STATUS_NAMES[1];
+    pushPaymentTrail(detailOfPlan, nodeId, 2, from, node.status, null, null, command.voucherId ?? null, String(command.basis).trim());
+    return { receipt: { ...recalcPaymentPlan(plan) } };
+  }
+
   /* ---- 模型供应商域变异（#88；provider 通道聚合镜像——行·留痕双端就地变异，apiKey 即入即掩
    * （铁律：明文只经写命令入、掩码出，fixture 永不存明文）；值面无动＝幂等回执零写入零落痕；
    * 删除痕 new 全 null、留痕 append-only 跨行存活（行删留痕仍可读）。档位入库挂 TIER_ROWS＋
@@ -842,7 +973,11 @@ export async function installAiplatformMocks(page, fixtures) {
             { code: 'admin:aiplatform:model-provider:create', name: 'AI 平台 / 模型供应商创建' },
             { code: 'admin:aiplatform:model-provider:update', name: 'AI 平台 / 模型供应商维护' },
             { code: 'admin:aiplatform:model-provider:delete', name: 'AI 平台 / 模型供应商删除' },
-            { code: 'admin:aiplatform:model-tier:create', name: 'AI 平台 / 模型档位创建' }
+            { code: 'admin:aiplatform:model-tier:create', name: 'AI 平台 / 模型档位创建' },
+            { code: 'admin:aiplatform:payment:read', name: 'AI 平台 / 付款核验查看' },
+            { code: 'admin:aiplatform:payment:update-plan', name: 'AI 平台 / 付款节点录入' },
+            { code: 'admin:aiplatform:payment:verify', name: 'AI 平台 / 付款到账核验' },
+            { code: 'admin:aiplatform:payment:reject', name: 'AI 平台 / 付款打回' }
           ],
           menus: []
         },
@@ -1361,6 +1496,74 @@ export async function installAiplatformMocks(page, fixtures) {
           if (result.error) return ord(...result.error);
           return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
         }
+      }
+    }
+
+    // ---- 付款核验域（#89；5 端点——计划详情读＋节点录入/核验/打回三写口＋凭证内容直出。
+    // 守卫族 ORD_036/037/038/039/041/042/045 自然裁决＋failNext 注入（409 ORD_044 重录窗口/
+    // 400 ORD_041 核验无效——写失败代表样 409/400）；plan/trails 就地变异——签内回读均拿到新事实）----
+    if (fixtures.payment) {
+      const ordPay = (status, code, message) => ordError(route, status, code, message);
+      const planOf = orderId => fixtures.payment.PAYMENT_PLANS[orderId] ?? null;
+      const planMatch = path.match(/^\/aiplatform\/orders\/([^/]+)\/payment-plan$/);
+      if (planMatch && method === 'GET') {
+        const d = planOf(planMatch[1]);
+        if (d) return json(route, 200, { code: 200, message: 'ok', data: d, requestId: 'e2e-mock', errors: null });
+        const orderKnown =
+          Boolean(fixtures.order?.ORDER_DETAILS[planMatch[1]]) ||
+          Boolean(fixtures.order?.ORDER_ROWS.some(r => r.id === planMatch[1]));
+        if (!orderKnown) return ordPay(404, 5001, '订单不存在（ORD_001）');
+        // 无计划＝尚无合同（正常态非错误——前端面板缺席 NEmpty；toast 透传由 onError 落）
+        return ordPay(404, 5036, '该订单名下无付款计划（ORD_036）');
+      }
+      const nodesMatch = path.match(/^\/aiplatform\/orders\/([^/]+)\/payment-plan\/nodes$/);
+      if (nodesMatch && method === 'POST') {
+        const d = planOf(nodesMatch[1]);
+        if (!d) return ordPay(404, 5036, '该订单名下无付款计划（ORD_036）');
+        if (state.failNextPaymentNodes) {
+          state.failNextPaymentNodes = false;
+          // 重录窗口已关（注入代表样 409）：HTTP 409 + 数字业务码 5044 + 原文 message
+          return ordPay(409, 5044, '支付活动已开始，不可重录付款节点（ORD_044）');
+        }
+        const result = applyPaymentNodes(d, JSON.parse(route.request().postData() ?? '{}'));
+        if (result.error) return ordPay(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+      const nodeWriteMatch = path.match(/^\/aiplatform\/orders\/([^/]+)\/payment-nodes\/([^/]+)\/(verify|reject)$/);
+      if (nodeWriteMatch && method === 'POST') {
+        const d = planOf(nodeWriteMatch[1]);
+        if (!d) return ordPay(404, 5036, '该订单名下无付款计划（ORD_036）');
+        const command = JSON.parse(route.request().postData() ?? '{}');
+        if (nodeWriteMatch[3] === 'verify') {
+          if (state.failNextPaymentVerify) {
+            state.failNextPaymentVerify = false;
+            // 核验录入无效（注入代表样 400——前端正数/必填先行拦截，此为服务端裁决透传靶）
+            return ordPay(400, 5041, '核验录入无效：实到金额须为正、实到时间必填（ORD_041）');
+          }
+          const result = applyPaymentVerify(d, nodeWriteMatch[2], command);
+          if (result.error) return ordPay(...result.error);
+          return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+        }
+        const result = applyPaymentReject(d, nodeWriteMatch[2], command);
+        if (result.error) return ordPay(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+      const voucherMatch = path.match(/^\/aiplatform\/payment-vouchers\/([^/]+)\/content$/);
+      if (voucherMatch && method === 'GET') {
+        const voucher = Object.values(fixtures.payment.PAYMENT_PLANS)
+          .flatMap(d => d.plan.nodes)
+          .flatMap(node => node.vouchers)
+          .find(v => v.id === voucherMatch[1]);
+        // 错误路径不走二进制（JSON 信封走 onError）；成功＝字节直出＋元数据行头透传
+        if (!voucher) return ordPay(404, 5045, '付款凭证不存在（ORD_045）');
+        return route.fulfill({
+          status: 200,
+          headers: {
+            'content-type': voucher.contentType,
+            'content-disposition': `attachment; filename="${voucher.fileName}"`
+          },
+          body: fixtures.payment.VOUCHER_BYTES
+        });
       }
     }
 

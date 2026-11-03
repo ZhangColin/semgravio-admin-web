@@ -331,6 +331,45 @@ export const ORDER_DETAILS = {
     cancelReason: null,
     cancelOperatorId: null,
     cancelOperatorName: null
+  },
+  /**
+   * 已支付（#89 付款核验域增量——空节点计划单（payment-fixtures PLAN_EMPTY）抽屉宿主；
+   * 合同 0010 在场故计划已随冻结生成、节点待录。既有订单域用例不涉此单，仅扩充不动既有断言）。
+   */
+  '7393120209091500005': {
+    id: '7393120209091500005',
+    projectId: '7392120209091500005',
+    projectName: '实验报告批改助手',
+    ownerDisplayName: '郑十一',
+    status: 3,
+    statusName: '已支付',
+    deliverableType: 3,
+    deliverableTypeName: '系统＋设计',
+    amount: '152000',
+    currency: 'CNY',
+    note: '首版报价',
+    priceEntries: [
+      {
+        id: '7394120209091500001',
+        amount: '152000',
+        currency: 'CNY',
+        note: '首版报价',
+        operatorId: '9',
+        operatorName: '运营甲',
+        createdAt: '2026-09-07T14:02:00'
+      }
+    ],
+    prdSnapshot: '# 实验报告批改助手\n\n## 目标\n拍照上传实验报告，AI 批改＋教师复核。',
+    createdAt: '2026-09-07T13:37:00',
+    quotedAt: '2026-09-07T14:02:00',
+    paidAt: '2026-09-07T20:00:00',
+    archivedAt: null,
+    archiveOperatorId: null,
+    archiveOperatorName: null,
+    cancelledAt: null,
+    cancelReason: null,
+    cancelOperatorId: null,
+    cancelOperatorName: null
   }
 };
 

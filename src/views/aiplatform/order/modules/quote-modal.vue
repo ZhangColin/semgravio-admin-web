@@ -7,12 +7,14 @@
  *
  * 金额输入用 NInput 而非 NInputNumber（payment 筛选条用后者）：NInputNumber 的 v-model
  * 仅在 blur/Enter 时提交，弹窗内「输完即点确认」会先撞上禁用态（点空白处才解锁，真实 UX 死胡同）；
- * NInput 逐键绑定 + 确认时解析，合法即解禁。
+ * NInput 逐键绑定 + 确认时解析，合法即解禁。校验/预填用 utils 共用件
+ * （parsePositiveYuan / centsToYuanText——#89 起收编，本 modal 为落地先例）。
  */
 import { computed, ref, watch } from 'vue';
 import { NForm, NFormItem, NInput, NModal } from 'naive-ui';
 import { fetchQuoteAiplatformOrder } from '@/service/api';
 import { $t } from '@/locales';
+import { centsToYuanText, parsePositiveYuan } from '@/utils/common';
 
 defineOptions({ name: 'OrderQuoteModal' });
 
@@ -36,13 +38,6 @@ const amountText = ref('');
 const note = ref('');
 const submitting = ref(false);
 
-/** 分 → 元字符串（预填；null/空不预填）。 */
-function centsToYuanText(cents?: string | null): string {
-  if (cents === null || cents === undefined || cents === '') return '';
-  const n = Number(cents);
-  return Number.isNaN(n) ? '' : String(n / 100);
-}
-
 watch(visible, val => {
   if (!val) return;
   amountText.value = props.mode === 'requote' ? centsToYuanText(props.currentAmountCents) : '';
@@ -50,12 +45,7 @@ watch(visible, val => {
 });
 
 /** 正数（≤2 位小数）即解禁；确认时再取整转分。 */
-const parsedAmountYuan = computed(() => {
-  const text = amountText.value.trim();
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null;
-  const n = Number(text);
-  return n > 0 ? n : null;
-});
+const parsedAmountYuan = computed(() => parsePositiveYuan(amountText.value));
 
 const isValid = computed(() => parsedAmountYuan.value !== null);
 

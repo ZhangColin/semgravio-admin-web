@@ -1116,6 +1116,9 @@ declare namespace App {
               cancelled: string;
             };
             drawer: {
+              tabs: {
+                basic: string;
+              };
               priceHistory: string;
               prdSnapshot: string;
               priceAmount: string;
@@ -1168,6 +1171,89 @@ declare namespace App {
               downloaded: string;
               downloadedDesign: string;
               contractCreated: string;
+            };
+          };
+          payment: {
+            tab: string;
+            empty: string;
+            overview: string;
+            contractNo: string;
+            totalAmount: string;
+            totalSettled: string;
+            createdAt: string;
+            nodes: string;
+            nodesEmpty: string;
+            node: {
+              seq: string;
+              name: string;
+              amount: string;
+              remarkCode: string;
+              kickoffGate: string;
+              kickoffGateTag: string;
+              status: string;
+              settledAmount: string;
+              remainingAmount: string;
+              operate: string;
+            };
+            vouchers: string;
+            vouchersEmpty: string;
+            voucher: {
+              node: string;
+              fileName: string;
+              size: string;
+              createdAt: string;
+              download: string;
+            };
+            trails: string;
+            trailsEmpty: string;
+            history: string;
+            historyRow: {
+              contractNo: string;
+              nodeCount: string;
+              totalAmount: string;
+              totalSettled: string;
+              createdAt: string;
+            };
+            action: {
+              enterNodes: string;
+              reEnterNodes: string;
+              verify: string;
+              reject: string;
+            };
+            nodesModal: {
+              title: string;
+              tip: string;
+              addRow: string;
+              namePlaceholder: string;
+              amountPlaceholder: string;
+              kickoffGate: string;
+              confirm: string;
+            };
+            verifyModal: {
+              title: string;
+              tip: string;
+              actualAmount: string;
+              actualAmountPlaceholder: string;
+              arrivedAt: string;
+              voucherId: string;
+              voucherIdPlaceholder: string;
+              channelRefNo: string;
+              channelRefNoPlaceholder: string;
+              basis: string;
+              basisPlaceholder: string;
+              confirm: string;
+            };
+            rejectModal: {
+              title: string;
+              tip: string;
+              basisPlaceholder: string;
+              confirm: string;
+            };
+            success: {
+              nodesEntered: string;
+              verified: string;
+              rejected: string;
+              voucherDownloaded: string;
             };
           };
           project: {

@@ -366,6 +366,33 @@ export const contractWriteAuth: Record<Api.Aiplatform.ContractAction, string> = 
 /** 创建/重建权限码（订单抽屉动作行「创建合同」入口常给门控——在场/可建由服务端 409 裁决透传）。 */
 export const CONTRACT_CREATE_AUTH = 'admin:aiplatform:contract:create';
 
+/* ---- 付款核验域（#89 A 批 T2——嵌订单抽屉「付款核验」签；读码门控签显隐、三写逐码 hasAuth）---- */
+
+/**
+ * 付款节点状态标签色（五态语义：待支付 info／支付处理中 warning（渠道在途）／支付失败或
+ * 关闭 error（渠道终局）／线下转账待核验 primary（核验操作主位）／已到账 success）。
+ * 文案走响应 statusName 直读（ADR-0009，无端侧映射）——本 Record 只配色；v1 只走 1→4→5，
+ * 2/3 为渠道真接后的保留位（配色先行，渲染零分支）。
+ */
+export const paymentNodeStatusTagColor: Record<Api.Aiplatform.PaymentNodeStatus, NaiveUI.ThemeColor> = {
+  1: 'info',
+  2: 'warning',
+  3: 'error',
+  4: 'primary',
+  5: 'success'
+};
+
+/** 付款核验读码（订单抽屉「付款核验」签显隐——无码不渲染签，account-profile 嵌件先例）。 */
+export const PAYMENT_READ_AUTH = 'admin:aiplatform:payment:read';
+
+/**
+ * 付款三写权限码（hasAuth 逐写门控——读写分权、每写一码：财务可只授核验/打回不授节点录入）。
+ * 录入/重录按钮常给（不预判重录窗口——ORD_044 服务端裁决）；核验/打回按钮另按节点 4 态门控。
+ */
+export const PAYMENT_NODES_AUTH = 'admin:aiplatform:payment:update-plan';
+export const PAYMENT_VERIFY_AUTH = 'admin:aiplatform:payment:verify';
+export const PAYMENT_REJECT_AUTH = 'admin:aiplatform:payment:reject';
+
 /* ---- 模型供应商域（#88 B 批 T1——通道 CRUD/远端清单拉取对照/留痕；读写分权、每写一码）---- */
 
 /** 通道三写动作（权限码 Record 的键约束；读面四端点共用 read 一码不逐项门控）。 */

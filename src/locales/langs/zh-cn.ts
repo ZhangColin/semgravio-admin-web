@@ -895,6 +895,9 @@ const local: App.I18n.Schema = {
           cancelled: '已取消'
         },
         drawer: {
+          tabs: {
+            basic: '基本信息'
+          },
           priceHistory: '价目历史',
           prdSnapshot: 'PRD 快照',
           priceAmount: '金额',
@@ -947,6 +950,89 @@ const local: App.I18n.Schema = {
           downloaded: '源码包下载成功',
           downloadedDesign: '设计资产包下载成功',
           contractCreated: '合同已创建'
+        }
+      },
+      payment: {
+        tab: '付款核验',
+        empty: '暂无付款计划（创建合同后生成）',
+        overview: '计划概览',
+        contractNo: '合同号',
+        totalAmount: '计划总额',
+        totalSettled: '累计已核到账',
+        createdAt: '计划创建时间',
+        nodes: '付款节点',
+        nodesEmpty: '待录入付款节点',
+        node: {
+          seq: '序号',
+          name: '名称',
+          amount: '金额',
+          remarkCode: '附言码',
+          kickoffGate: '开工门',
+          kickoffGateTag: '开工门',
+          status: '状态',
+          settledAmount: '累计核到账',
+          remainingAmount: '还需支付',
+          operate: '操作'
+        },
+        vouchers: '凭证清单',
+        vouchersEmpty: '暂无转账凭证',
+        voucher: {
+          node: '所属节点',
+          fileName: '文件名',
+          size: '大小',
+          createdAt: '上传时间',
+          download: '下载'
+        },
+        trails: '核验留痕',
+        trailsEmpty: '暂无核验留痕',
+        history: '历史计划',
+        historyRow: {
+          contractNo: '合同号',
+          nodeCount: '节点数',
+          totalAmount: '计划总额',
+          totalSettled: '累计核到账',
+          createdAt: '创建时间'
+        },
+        action: {
+          enterNodes: '录入付款节点',
+          reEnterNodes: '重录付款节点',
+          verify: '到账核验',
+          reject: '打回'
+        },
+        nodesModal: {
+          title: '付款节点录入',
+          tip: '整组替换提交（不收半组）：序号按列表序派生、附言码自合同号定格；支付活动开始后重录将由服务端拒绝。',
+          addRow: '添加节点',
+          namePlaceholder: '如：首期开工款',
+          amountPlaceholder: '正数金额（元）',
+          kickoffGate: '开工门',
+          confirm: '整组提交'
+        },
+        verifyModal: {
+          title: '到账核验',
+          tip: '累计核到账达到节点金额时自动转为已到账（全额判定归服务端）；不足则留痕并回待支付。',
+          actualAmount: '实到金额（元）',
+          actualAmountPlaceholder: '请输入实到金额',
+          arrivedAt: '实到时间',
+          voucherId: '关联凭证',
+          voucherIdPlaceholder: '选填（该节点已传凭证）',
+          channelRefNo: '渠道流水号',
+          channelRefNoPlaceholder: '选填',
+          basis: '依据/备注',
+          basisPlaceholder: '选填，至多 1000 字',
+          confirm: '确认核验'
+        },
+        rejectModal: {
+          title: '打回凭证',
+          tip: '节点 {name} 将被打回「待支付」（用户可重新上传凭证）；累计已核到账不动。',
+          basisPlaceholder: '必填，至多 1000 字',
+          confirm: '确认打回'
+        },
+        success: {
+          nodesEntered: '付款节点已录入',
+          verified: '核验已录入',
+          rejected: '已打回',
+          voucherDownloaded: '凭证下载成功'
         }
       },
       project: {

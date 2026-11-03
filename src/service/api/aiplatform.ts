@@ -66,6 +66,13 @@
  *   不读明文（读面/留痕恒掩码尾 4 位，null＝未配置）；更新缺省肢＝保持现值（apiKey 留空＝
  *   保持的 round-trip 安全语义）；远端拉取每次全量真拉无缓存、对照目录驱动「勾选入库」
  *   （复用档位创建写口 POST /model-tiers——跨域码 model-tier:create）。
+ *
+ * 付款核验域（#89 A 批 T2，5 端点）：嵌订单抽屉「付款核验」签（无独立页——付款域无统一
+ *   顶层路径，照 provider 路由原形挂 orders/{orderId}/payment-plan* 与 payment-vouchers）。
+ *   节点五态（v1 只走凭证核验 1→4→5）/全额判定/打回守卫/重录窗口全由 provider 裁决
+ *   （ORD_03x/04x 透传不判码）；全额判定归 provider 前端不预判、节点录入不预判重录窗口；
+ *   三写回执＝PaymentPlan 现值（不含 trails/history）——不消费：toast＋回读 detail；
+ *   凭证内容＝二进制无信封 blob（Content-Disposition 文件名透传，源码包先例）。
  */
 import { request } from '../request';
 
@@ -522,4 +529,68 @@ export function fetchGetAiplatformModelProviderTraces(providerKey: string) {
 /** POST /aiplatform/model-tiers——档位创建（对照 drawer 内嵌入库复用此写口：providerKey＝本通道、modelName＝所选条目 modelId；hasAuth model-tier:create 跨域码）。撞名 409 PRJ_068、通道不存在 400 PRJ_071。回执＝档位行（不消费：toast＋本地对照态更新）。 */
 export function fetchCreateAiplatformModelTier(data: Api.Aiplatform.ModelTierCreateCommand) {
   return request<Api.Aiplatform.ModelTier>({ url: '/aiplatform/model-tiers', method: 'post', data });
+}
+
+/* ---- 付款核验域（#89 A 批 T2，5 端点）：嵌订单抽屉「付款核验」签（无独立页——付款域
+ * 无统一顶层路径，照 provider 路由原形挂 orders/{orderId} 与 payment-vouchers）。
+ * 节点五态/全额判定/打回守卫/重录窗口全由 provider 裁决（ORD_03x/04x 数字码透传不判码）；
+ * 三写回执＝PaymentPlan 现值（不含 trails/history 全量）——不消费：toast＋回读 detail。 ---- */
+
+/** GET /aiplatform/orders/{orderId}/payment-plan——计划详情三段（plan 活跃计划全量＋trails 留痕时间线新→旧跨节点＋history 历史计划行）。订单无计划（尚无合同）404 ORD_036 → 面板缺席（NEmpty，prd-pane 先例）。 */
+export function fetchGetAiplatformPaymentPlan(orderId: string) {
+  return request<Api.Aiplatform.PaymentPlanDetail>({ url: `/aiplatform/orders/${orderId}/payment-plan`, method: 'get' });
+}
+
+/**
+ * POST /aiplatform/orders/{orderId}/payment-plan/nodes——付款节点整组替换录入（不收半组；
+ * 序号按列表序服务端派生、附言码自合同号定格）。重录唯一窗口＝支付活动未开始（409 ORD_044
+ * 服务端裁决——前端不预判可观测推导）；录入无效 400 ORD_039。回执＝录入后计划现值（不消费）。
+ */
+export function fetchEnterAiplatformPaymentNodes(orderId: string, data: Api.Aiplatform.PaymentNodesCommand) {
+  return request<Api.Aiplatform.PaymentPlan>({
+    url: `/aiplatform/orders/${orderId}/payment-plan/nodes`,
+    method: 'post',
+    data
+  });
+}
+
+/**
+ * POST /aiplatform/orders/{orderId}/payment-nodes/{nodeId}/verify——到账核验录入（实到金额/
+ * 实到时间/关联凭证/渠道流水号/依据随行 append-only 留痕）。全额判定归 provider：累计核到账
+ * ≥节点额自动转已到账、不足留痕回待支付（累计不清零）；仅线下转账待核验态可达（409 ORD_038）、
+ * 凭证须属该节点（404 ORD_045）、录入无效 400 ORD_041。回执＝动作后计划现值（不消费）。
+ */
+export function fetchVerifyAiplatformPaymentNode(orderId: string, nodeId: string, data: Api.Aiplatform.PaymentVerifyCommand) {
+  return request<Api.Aiplatform.PaymentPlan>({
+    url: `/aiplatform/orders/${orderId}/payment-nodes/${nodeId}/verify`,
+    method: 'post',
+    data
+  });
+}
+
+/**
+ * POST /aiplatform/orders/{orderId}/payment-nodes/{nodeId}/reject——打回（依据必填留痕 400
+ * ORD_042、关联凭证可空 ORD_045）：回「待支付」不动累计已核到账（用户可再传凭证）；
+ * 仅线下转账待核验态可达（409 ORD_038）。回执＝回待支付后的计划现值（不消费）。
+ */
+export function fetchRejectAiplatformPaymentNode(orderId: string, nodeId: string, data: Api.Aiplatform.PaymentRejectCommand) {
+  return request<Api.Aiplatform.PaymentPlan>({
+    url: `/aiplatform/orders/${orderId}/payment-nodes/${nodeId}/reject`,
+    method: 'post',
+    data
+  });
+}
+
+/**
+ * GET /aiplatform/payment-vouchers/{voucherId}/content——凭证文件字节直出（无 ApiResponse
+ * 信封，源码包先例）：Content-Type 真实媒体类型＋Content-Disposition 文件名均取 provider
+ * 原值透传（不打解析），缺失时端侧以元数据行 fileName 兜底。凭证不存在 404 ORD_045（错误
+ * 路径走 JSON 信封——由 @sa/axios blob→json 自动转 onError toast）。
+ */
+export function fetchDownloadAiplatformPaymentVoucher(voucherId: string) {
+  return request<Blob, 'blob'>({
+    url: `/aiplatform/payment-vouchers/${voucherId}/content`,
+    method: 'get',
+    responseType: 'blob'
+  });
 }

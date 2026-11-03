@@ -1,4 +1,4 @@
-# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域）
+# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域）
 
 headless Chrome（`playwright-core` 系统 channel，**免下载浏览器**）+ `page.route` 全量 mock。
 mock fixtures 的字段形状**派生自 admin :8081 `/v3/api-docs`**（各域 `support/*-fixtures.mjs` 头注释标明
@@ -114,6 +114,24 @@ e2e/
                            （建议入库两态/已入库两档/staleTiers 两行）＋最小档位集 TIER_ROWS；
                            CRUD/入库变异由 harness applyProvider*/applyTierCreate 就地改——
                            **apiKey 即入即掩（maskApiKey 单点），fixture 永不存明文**（铁律））
+  payment.e2e.mjs         付款核验域验收流（#89 A 批 T2：订单抽屉两签——「付款核验」签切签挂载
+                           即加载/无计划 404 ORD_036 面板缺席＋toast 透传/计划详情三段全量（概览
+                           contractNo mono·总额·累计/节点表五态 statusName 直读＋附言码 mono＋
+                           开工门 tag＋部分核到账·还需支付＋到账时点·流水号随行/凭证清单四张
+                           平面/留痕时间线新→旧跨节点/历史计划行收起态）/核验 modal（元转分＋
+                           arrivedAt ISO＋凭证清单选＋channelRefNo＋basis——足额自动转已到账＝
+                           harness 累计核到账模拟、不足回待支付不清零）/打回 basis-only（回待支付
+                           ＋钮随 4 态消失＋留痕）/凭证下载（无信封二进制＋Content-Disposition）/
+                           节点录入整组替换（空计划首录·重录按钮切换·附言码自合同号定格）/
+                           失败注入代表样 400 ORD_041＋409 ORD_044 透传）
+  payment-fixtures.mjs    付款核验 fixtures（AiplatformPaymentPlanDetail/Nodes/Verify/Reject
+                           wire 形状——金额 Long 分恒 string；三单：PLAN_RICH 六节点五态全覆盖
+                           （已到账/待核验×2/待支付/处理中/失败关闭——2/3 渠道保留位展示样本）
+                           ＋部分核到账＋双凭证＋trails 三类＋history 一行、PLAN_EMPTY 空节点
+                           （录入流靶）、无计划单（ORD_036 靶）；三写变异由 harness
+                           applyPaymentNodes/Verify/Reject 就地改——verify＝provider 全额判定
+                           镜像（settled≥amount 转已到账、不足回待支付），守卫族
+                           ORD_036/037/038/039/041/042/044/045 自然裁决）
 ```
 
 技能域 fixtures 一并承载指派态（`SKILL_ASSIGNMENTS` 三槽初始指派——PUT 由 harness 就地整包替换，

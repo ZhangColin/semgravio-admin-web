@@ -899,6 +899,9 @@ const local: App.I18n.Schema = {
           cancelled: 'Cancelled'
         },
         drawer: {
+          tabs: {
+            basic: 'Basic Info'
+          },
           priceHistory: 'Price History',
           prdSnapshot: 'PRD Snapshot',
           priceAmount: 'Amount',
@@ -951,6 +954,89 @@ const local: App.I18n.Schema = {
           downloaded: 'Source package downloaded',
           downloadedDesign: 'Design asset package downloaded',
           contractCreated: 'Contract created'
+        }
+      },
+      payment: {
+        tab: 'Payment Verification',
+        empty: 'No payment plan yet (created with the contract)',
+        overview: 'Plan Overview',
+        contractNo: 'Contract No.',
+        totalAmount: 'Plan Total',
+        totalSettled: 'Total Verified Received',
+        createdAt: 'Plan Created At',
+        nodes: 'Payment Nodes',
+        nodesEmpty: 'No payment nodes entered yet',
+        node: {
+          seq: 'Seq',
+          name: 'Name',
+          amount: 'Amount',
+          remarkCode: 'Remark Code',
+          kickoffGate: 'Kickoff Gate',
+          kickoffGateTag: 'Kickoff Gate',
+          status: 'Status',
+          settledAmount: 'Verified Received',
+          remainingAmount: 'Remaining',
+          operate: 'Actions'
+        },
+        vouchers: 'Transfer Vouchers',
+        vouchersEmpty: 'No transfer vouchers',
+        voucher: {
+          node: 'Node',
+          fileName: 'File Name',
+          size: 'Size',
+          createdAt: 'Uploaded At',
+          download: 'Download'
+        },
+        trails: 'Verification Trails',
+        trailsEmpty: 'No verification trails',
+        history: 'Historical Plans',
+        historyRow: {
+          contractNo: 'Contract No.',
+          nodeCount: 'Nodes',
+          totalAmount: 'Plan Total',
+          totalSettled: 'Verified Received',
+          createdAt: 'Created At'
+        },
+        action: {
+          enterNodes: 'Enter Payment Nodes',
+          reEnterNodes: 'Re-enter Payment Nodes',
+          verify: 'Verify Receipt',
+          reject: 'Reject'
+        },
+        nodesModal: {
+          title: 'Enter Payment Nodes',
+          tip: 'Whole-group replacement (no partial submit): sequence derived from list order, remark codes fixed from contract no.; re-entry after payment activity starts will be rejected by the server.',
+          addRow: 'Add Node',
+          namePlaceholder: 'e.g. Kickoff Payment',
+          amountPlaceholder: 'Positive amount (CNY)',
+          kickoffGate: 'Kickoff Gate',
+          confirm: 'Submit Group'
+        },
+        verifyModal: {
+          title: 'Verify Receipt',
+          tip: 'Node turns received automatically when cumulative verified amount reaches the node amount (full-amount judgement is server-side); otherwise a trail is kept and the node returns to pending payment.',
+          actualAmount: 'Actual Amount (CNY)',
+          actualAmountPlaceholder: 'Enter actual amount',
+          arrivedAt: 'Arrived At',
+          voucherId: 'Linked Voucher',
+          voucherIdPlaceholder: 'Optional (vouchers of this node)',
+          channelRefNo: 'Channel Ref No.',
+          channelRefNoPlaceholder: 'Optional',
+          basis: 'Basis / Note',
+          basisPlaceholder: 'Optional, up to 1000 characters',
+          confirm: 'Confirm Verification'
+        },
+        rejectModal: {
+          title: 'Reject Voucher',
+          tip: 'Node {name} will be sent back to pending payment (user may re-upload); cumulative verified received stays unchanged.',
+          basisPlaceholder: 'Required, up to 1000 characters',
+          confirm: 'Confirm Rejection'
+        },
+        success: {
+          nodesEntered: 'Payment nodes entered',
+          verified: 'Verification recorded',
+          rejected: 'Rejected',
+          voucherDownloaded: 'Voucher downloaded'
         }
       },
       project: {

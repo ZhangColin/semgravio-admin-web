@@ -67,6 +67,37 @@ export function formatMoney(cents?: number | string | null): string {
 }
 
 /**
+ * Parse a user-typed yuan amount (positive, ≤2 decimal places) into a number.
+ *
+ * 金额弹窗「元输入、提交转整数分」的共用校验（quote-modal 落地、#89 付款两 modal 起收编
+ * 于此）：正则钉 ≤2 位小数（分位即精度上限）＋正数；非法/非正返回 `null`（调用方据此
+ * 禁用确认钮），合法即解禁——确认时调用方 `Math.round(n * 100)` 转分（乘 100 的浮点
+ * 误差由 round 收口）。NInput 逐键绑定即校验（NInputNumber 失焦才提交，弹窗内
+ * 「输完即点确认」会先撞禁用态——quote-modal 备案）。
+ *
+ * @param text 用户输入原文（trim 后校验）
+ */
+export function parsePositiveYuan(text: string): number | null {
+  if (!/^\d+(\.\d{1,2})?$/.test(text.trim())) return null;
+  const n = Number(text);
+  return n > 0 ? n : null;
+}
+
+/**
+ * Convert integer cents (wire string) to a yuan string for prefill inputs.
+ *
+ * `parsePositiveYuan` 的回显对偶：分 → 元字符串（预填「改价/重录」表单）；`null` / 空串 /
+ * 非数返回 `''`（不预填）。**勿用于展示**——展示走 `formatMoney`（千分位＋¥ 前缀）。
+ *
+ * @param cents 整数分（**string** 为契约正形，number 兼容），可空
+ */
+export function centsToYuanText(cents?: number | string | null): string {
+  if (cents === null || cents === undefined || cents === '') return '';
+  const n = Number(cents);
+  return Number.isNaN(n) ? '' : String(n / 100);
+}
+
+/**
  * Format a byte count for display (`512 B` / `1.82 KB` / `5 MB`).
  *
  * aiplatform 文件树 `size` 为 Long（字节）→ JSON **字符串**（同全局 Long 序列化口径），

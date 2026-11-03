@@ -76,6 +76,20 @@
  *   非迁移动作 from=to）；签署标记不自动迁移状态（「签署完成」由 advance 显式推进）；
  *   错误族 ORD_02x 数字码透传不判码（ORD_020 查无/021 无边/022·023 依据/024 活跃唯一/
  *   025·026 冻结集前置/027 双签门禁/028 签署位幂等/031 重录窗口/032 内容超长）。
+ *
+ * 付款核验域（#89，A 批 T2，5 端点；嵌订单抽屉「付款核验」签无独立页——付款域无统一顶层
+ *   路径，照 provider 路由原形：plan/plan-nodes 挂 orders/{orderId}、verify/reject 挂
+ *   payment-nodes/{nodeId}、凭证内容挂 payment-vouchers/{voucherId}）：节点五态 1=待支付
+ *   2=支付处理中 3=支付失败或关闭 4=线下转账待核验 5=已到账（v1 只走凭证核验 1→4→5，
+ *   2/3 渠道真接后启用；4=唯一可核验/打回态）；全额判定归 provider（累计核到账≥节点额自动
+ *   转已到账、不足留痕回待支付且累计不清零）；节点录入整组替换且「支付活动未开始」为重录
+ *   唯一窗口（409 ORD_044——前端不预判）；附言码＝`<合同号>-K<序>`；金额 Long 分 string。
+ *   detail 三段＝plan 活跃计划全量＋trails 留痕时间线（新→旧跨节点）＋history 历史计划行
+ *   （不含活跃行）；订单无计划 404 ORD_036 → 面板缺席（NEmpty，prd-pane 先例）；凭证内容
+ *   ＝二进制无信封 blob（Content-Disposition 文件名透传，源码包先例）。三写回执＝PaymentPlan
+ *   现值（不含 trails/history）——不消费：toast＋回读 detail。错误族 ORD_03x/04x 透传不判码
+ *   （036 无计划/037 节点无/038 状态守卫/039 录入无效/041 核验无效/042 打回依据/043 操作者/
+ *   044 重录窗口/045 凭证归属）。
  */
 declare namespace Api {
   namespace Aiplatform {
@@ -1208,6 +1222,159 @@ declare namespace Api {
       partyB: string | null;
       projectScope: string | null;
       paymentPlan: string | null;
+      basis: string;
+    }
+
+    /* ---- 付款核验域（#89 A 批 T2——orders/{orderId}/payment-plan* ＋ payment-nodes/* ＋
+     * payment-vouchers/*，5 端点；嵌订单抽屉「付款核验」签，无独立页。节点五态/全额判定/
+     * 打回守卫/重录窗口全由 provider 裁决（ORD_036/037/038/039/041/042/044/045 透传不判码）。
+     * 三写回执＝PaymentPlan（计划现值，不含 trails/history 全量）——不消费：toast＋回读 detail。---- */
+
+    /**
+     * 付款节点状态（五态）：1=待支付 2=支付处理中 3=支付失败或关闭 4=线下转账待核验
+     * 5=已到账。v1 只走凭证核验路径 1→4→5（2/3 渠道真接后启用）；4=唯一可核验/打回态。
+     */
+    type PaymentNodeStatus = 1 | 2 | 3 | 4 | 5;
+
+    /**
+     * 付款计划（三写回执共用同形；detail 的 plan 段同构）——计划身份/合同冻结同刻信息/
+     * 总额与累计已核到账/节点清单（录入序；空表＝待后台录入）。金额 Long（分）→ JSON string。
+     */
+    interface PaymentPlan {
+      /** 计划标识（TSID 十进制串） */
+      id: string;
+      orderId: string;
+      /** 创建时点的合同 */
+      contractId: string;
+      /** 合同号定格（附言码正身源） */
+      contractNo: string;
+      /** 计划总额（分＝节点金额合计；未录入节点为 0） */
+      totalAmount: string;
+      /** 累计已核到账（分） */
+      totalSettled: string;
+      /** 创建时间（＝合同冻结同刻） */
+      createdAt: string;
+      nodes: PaymentNode[];
+    }
+
+    /**
+     * 付款节点——序号/名称/金额＋占比/五态/附言码（`<合同号>-K<序>`，转账回执对账关联位）/
+     * 开工门标志（开工判定按本标志取节点集合）/渠道接口位（1=线下转账 2=扫码占位＋流水号
+     * 核验录入时落值）/累计已核到账与还需支付推导/到账时点/本人凭证清单（上传序，追加不覆盖）。
+     */
+    interface PaymentNode {
+      id: string;
+      /** 序号（1 起——录入序即展示序） */
+      seq: number;
+      name: string;
+      /** 金额（分，绝对额） */
+      amount: string;
+      /** 占比（整数百分比，展示换算——计划未录入节点时无此面） */
+      percentage: number | null;
+      status: PaymentNodeStatus;
+      statusName: string;
+      remarkCode: string;
+      kickoffGate: boolean;
+      channelType: number;
+      channelTypeName: string;
+      /** 渠道流水号（可空；核验录入时落值） */
+      channelRefNo: string | null;
+      /** 累计已核到账（分；不足留痕后仍累积） */
+      settledAmount: string;
+      /** 还需支付（分＝amount−settled，前台推导面） */
+      remainingAmount: string;
+      /** 转已到账时点（未到账 null） */
+      receivedAt: string | null;
+      vouchers: PaymentVoucher[];
+    }
+
+    /** 转账凭证元数据行——上传仅代表已提交（核验结论在留痕行）；字节不在读面（看证走内容端点）。 */
+    interface PaymentVoucher {
+      id: string;
+      nodeId: string;
+      /** 净化后原始文件名（回单/水单人读） */
+      fileName: string;
+      /** MIME（application/pdf | image/png | image/jpeg） */
+      contentType: string;
+      /** 字节数（Long → string） */
+      byteSize: string;
+      createdAt: string;
+    }
+
+    /**
+     * 付款计划详情（GET /orders/{orderId}/payment-plan）——核验承接全量面三段：
+     * plan 活跃计划全量＋trails 核验留痕时间线（新→旧，跨节点 append-only）＋history
+     * 历史计划行摘要（新→旧，不含活跃行）。订单无计划（尚无合同）404 ORD_036 → 面板缺席。
+     */
+    interface PaymentPlanDetail {
+      plan: PaymentPlan;
+      trails: PaymentVerification[];
+      history: PaymentHistoryPlan[];
+    }
+
+    /** 核验留痕行——到账核验（action=1）/打回（action=2）各一行；「不足留痕」「打回依据」审计正身。 */
+    interface PaymentVerification {
+      id: string;
+      /** 所属付款节点（时间线跨节点全量——行上自携归属） */
+      nodeId: string;
+      /** 1=到账核验 2=打回 */
+      action: number;
+      actionName: string;
+      fromStatus: PaymentNodeStatus;
+      toStatus: PaymentNodeStatus;
+      /** 实到金额（分；打回 null） */
+      actualAmount: string | null;
+      /** 实到时间（打回 null） */
+      arrivedAt: string | null;
+      /** 关联凭证（可空） */
+      voucherId: string | null;
+      /** 依据/备注（打回必填；到账核验可空） */
+      basis: string | null;
+      operatorId: string;
+      operatorName: string;
+      createdAt: string;
+    }
+
+    /** 历史计划行摘要（留痕面——节点细节不在本面，行身份与冻结集指向足矣）。 */
+    interface PaymentHistoryPlan {
+      id: string;
+      contractId: string;
+      contractNo: string;
+      nodeCount: number;
+      totalAmount: string;
+      totalSettled: string;
+      createdAt: string;
+    }
+
+    /**
+     * POST /orders/{orderId}/payment-plan/nodes body——整组替换（不收半组，每次全量提交）；
+     * 序号按列表序服务端派生、附言码自合同号定格。「支付活动未开始」（全部待支付且无凭证
+     * 无留痕）是重录唯一窗口（409 ORD_044 服务端裁决——前端不预判）；录入无效 400 ORD_039。
+     */
+    interface PaymentNodesCommand {
+      nodes: { name: string; amount: number; kickoffGate: boolean }[];
+    }
+
+    /**
+     * POST /orders/{orderId}/payment-nodes/{nodeId}/verify body——实到金额（分，正数）/
+     * 实到时间（ISO-8601 业务时间）/关联凭证（可空，须属该节点 ORD_045）/渠道流水号（可空
+     * 落值）/备注（可空 ≤1000）。全额判定归 provider（累计≥节点额自动转已到账，不足留痕
+     * 回待支付）；仅线下转账待核验态可达（409 ORD_038）；录入无效 400 ORD_041。
+     */
+    interface PaymentVerifyCommand {
+      actualAmount: number;
+      arrivedAt: string;
+      voucherId?: string | null;
+      channelRefNo?: string | null;
+      basis?: string | null;
+    }
+
+    /**
+     * POST /orders/{orderId}/payment-nodes/{nodeId}/reject body——打回依据必填留痕（400
+     * ORD_042）/关联凭证可空；回「待支付」不动累计已核到账（用户可再传凭证）。
+     */
+    interface PaymentRejectCommand {
+      voucherId?: string | null;
       basis: string;
     }
 
