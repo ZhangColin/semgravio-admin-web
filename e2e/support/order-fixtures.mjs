@@ -292,6 +292,45 @@ export const ORDER_DETAILS = {
     cancelReason: null,
     cancelOperatorId: null,
     cancelOperatorName: null
+  },
+  /**
+   * 已报价（#87 合同域增量——创建合同流目标单：旧合同已终态 ⇒ 可创建、二次创建撞 ORD_024；
+   * 既有订单域用例不涉此单，新增仅扩充 fixtures 不动既有断言）。
+   */
+  '7393120209092000006': {
+    id: '7393120209092000006',
+    projectId: '7392120209092000006',
+    projectName: '英语晨读陪练',
+    ownerDisplayName: '吴十',
+    status: 2,
+    statusName: '已报价',
+    deliverableType: 1,
+    deliverableTypeName: '设计',
+    amount: '35800',
+    currency: 'CNY',
+    note: '首版报价',
+    priceEntries: [
+      {
+        id: '7394120209092000001',
+        amount: '35800',
+        currency: 'CNY',
+        note: '首版报价',
+        operatorId: '9',
+        operatorName: '运营甲',
+        createdAt: '2026-09-08T19:00:00'
+      }
+    ],
+    prdSnapshot: '# 英语晨读陪练\n\n## 目标\n跟读录音 AI 打分，班级排行。',
+    createdAt: '2026-09-08T18:22:00',
+    quotedAt: '2026-09-08T19:00:00',
+    paidAt: null,
+    archivedAt: null,
+    archiveOperatorId: null,
+    archiveOperatorName: null,
+    cancelledAt: null,
+    cancelReason: null,
+    cancelOperatorId: null,
+    cancelOperatorName: null
   }
 };
 

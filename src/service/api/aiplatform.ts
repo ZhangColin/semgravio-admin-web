@@ -53,6 +53,13 @@
  *   无专用端点）；工具面按三槽位列挂载工具。保存四字段全量回传（两工具 flag 以 GET 回显原值
  *   透传——契约「缺省＝true 开」，防静默误开）；工具开关独走 tool 端点（agent-tool:toggle 码），
  *   config 表单不动两 flag。
+ *
+ * 合同域（#87 A 批 T1，9 端点）：六态人工承接（1 准备中→2 待核对与签署→3 签署进行中→4 签署
+ *   完成，末边须双方均签；旁落 5/旁支 6 终态不删、重建换新号）。清单四维检索同订单域形制
+ *   （status 多选逗号单值/createdFrom·To 本地串/orderId/contractNo）；详情三段＝contract 全
+ *   字段（needsUpdate 派生标志＋范围快照冻结三段＋双方签署位/落签时点）＋PRD 全文＋transitions
+ *   新→旧。七写守卫全在 provider（ORD_02x 透传不判码）；七写回执均＝单段合同体（非三段
+ *   detail）——前端不消费：toast＋详情回读＋列表刷新。创建重建无请求体（冻结集取现值）。
  */
 import { request } from '../request';
 
@@ -402,4 +409,67 @@ export function fetchToggleAiplatformAgentTool(toolName: string, data: Api.Aipla
 /** GET /aiplatform/accounts/{externalId}——账号极简档案（id/externalId/displayName/createdAt；未命中 404 IDN_004→6004 走 onError 透传 toast）。 */
 export function fetchGetAiplatformAccountProfile(externalId: string) {
   return request<Api.Aiplatform.AccountProfile>({ url: `/aiplatform/accounts/${externalId}`, method: 'get' });
+}
+
+/* ---- 合同域（#87 A 批 T1，9 端点：读 2＋创建重建 1＋六写口；六态人工承接，守卫全在
+ * provider（ORD_02x 数字码透传不判码）。七写回执均＝单段合同体（非三段 detail）——前端
+ * 不消费此体：toast＋详情回读＋列表刷新。 ---- */
+
+/** GET /aiplatform/contracts——合同清单（四维检索：status 多选/创建时间区间/orderId/contractNo 精确；新在前 TSID 倒序服务端定死，分页 1-based）。 */
+export function fetchGetAiplatformContractList(params: Api.Aiplatform.ContractSearchParams) {
+  const serialized: Record<string, unknown> = { ...params };
+  if (params.status?.length) {
+    serialized.status = params.status.join(',');
+  } else {
+    delete serialized.status;
+  }
+  return request<Api.Common.PageResponse<Api.Aiplatform.ContractSummary>>({
+    url: '/aiplatform/contracts',
+    method: 'get',
+    params: serialized
+  });
+}
+
+/** GET /aiplatform/contracts/{id}——合同详情三段（contract 全字段含 needsUpdate/范围快照冻结三段/双方签署位＋落签时点；PRD 确认版全文；transitions 动作留痕新→旧）。 */
+export function fetchGetAiplatformContract(id: string) {
+  return request<Api.Aiplatform.ContractDetail>({ url: `/aiplatform/contracts/${id}`, method: 'get' });
+}
+
+/**
+ * POST /aiplatform/contracts/orders/{orderId}——创建/重建合同（无请求体：冻结集由 provider
+ * 取订单现值落）。前置门全在 provider 透传（404 ORD_001 / 409 ORD_025 无报价 / ORD_026 范围
+ * 未录 / ORD_024 已有活跃合同 / ORD_021 已签关门）。回执＝新合同体（不消费——成功不跳转）。
+ */
+export function fetchCreateAiplatformContractForOrder(orderId: string) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/orders/${orderId}`, method: 'post' });
+}
+
+/** POST /aiplatform/contracts/{id}/advance——推进合同（线性单步；末边 3→4 须双方均签 409 ORD_027 兜底竞态；依据必填 ≤1000）。回执＝动作后合同现值（不消费）。 */
+export function fetchAdvanceAiplatformContract(id: string, data: Api.Aiplatform.ContractActionCommand) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/advance`, method: 'post', data });
+}
+
+/** POST /aiplatform/contracts/{id}/fail——旁落「签署失败或过期」终态（仅自 2/3 可达）。回执＝终态现值（不消费）。 */
+export function fetchFailAiplatformContract(id: string, data: Api.Aiplatform.ContractActionCommand) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/fail`, method: 'post', data });
+}
+
+/** POST /aiplatform/contracts/{id}/withdraw——撤回（自任何非终态；此后换新号重建）。回执＝终态现值（不消费）。 */
+export function fetchWithdrawAiplatformContract(id: string, data: Api.Aiplatform.ContractActionCommand) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/withdraw`, method: 'post', data });
+}
+
+/** POST /aiplatform/contracts/{id}/void——作废（守卫与去向同撤回，留痕 action 分立可审计）。回执＝终态现值（不消费）。 */
+export function fetchVoidAiplatformContract(id: string, data: Api.Aiplatform.ContractActionCommand) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/void`, method: 'post', data });
+}
+
+/** POST /aiplatform/contracts/{id}/sign——落一方签署位（party 1=甲方 2=乙方；不自动迁移状态；已落签幂等拒 409 ORD_028）。回执＝签署位落定后现值（不消费）。 */
+export function fetchSignAiplatformContract(id: string, data: Api.Aiplatform.ContractSignCommand) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/sign`, method: 'post', data });
+}
+
+/** POST /aiplatform/contracts/{id}/record——草稿重录五肢整组（仅草稿态 1/2；version+1、needsUpdate 清零、冻结集重取现值）。回执＝重录后现值（不消费）。 */
+export function fetchRecordAiplatformContract(id: string, data: Api.Aiplatform.ContractRecordCommand) {
+  return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/record`, method: 'post', data });
 }

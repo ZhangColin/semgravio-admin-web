@@ -258,7 +258,8 @@ const local: App.I18n.Schema = {
     aiplatform_skill_assignment: 'Skill Assignment',
     aiplatform_skill_draft: 'Draft Review',
     aiplatform_agent: 'Agent',
-    aiplatform_agent_config: 'Agent Config'
+    aiplatform_agent_config: 'Agent Config',
+    aiplatform_contract: 'Contracts'
   },
   page: {
     login: {
@@ -915,7 +916,8 @@ const local: App.I18n.Schema = {
           quote: 'Quote',
           requote: 'Re-quote',
           cancel: 'Cancel Order',
-          retryArchive: 'Retry Archive'
+          retryArchive: 'Retry Archive',
+          createContract: 'Create Contract'
         },
         quoteModal: {
           title: 'Submit Quote',
@@ -936,12 +938,17 @@ const local: App.I18n.Schema = {
           retryArchive: 'Retry Archive',
           target: 'Order {orderId}'
         },
+        createContractConfirm: {
+          title: 'Create Contract',
+          tip: 'A contract will be created for order {orderId} (frozen set taken from current order values; rejected by the server if an active contract exists or preconditions fail).'
+        },
         success: {
           quoted: 'Quote submitted',
           cancelled: 'Order cancelled',
           retried: 'Archive retry triggered',
           downloaded: 'Source package downloaded',
-          downloadedDesign: 'Design asset package downloaded'
+          downloadedDesign: 'Design asset package downloaded',
+          contractCreated: 'Contract created'
         }
       },
       project: {
@@ -1457,6 +1464,89 @@ const local: App.I18n.Schema = {
         accountId: 'Account ID',
         externalId: 'External ID',
         createdAt: 'Registered At'
+      },
+      /** Contract domain (#87 batch A T1 — six-state manual undertaking: list / 3-section detail / seven writes). */
+      contract: {
+        title: 'Contracts',
+        detailTitle: 'Contract Detail',
+        contractId: 'Contract ID',
+        contractNo: 'Contract No.',
+        orderId: 'Order ID',
+        status: 'Status',
+        version: 'Version',
+        amount: 'Amount',
+        createdAt: 'Created At',
+        detail: 'View',
+        more: 'Actions',
+        needsUpdate: 'Needs Update',
+        form: {
+          status: 'Status (multi-select)',
+          createdRange: 'Created At',
+          orderId: 'Order ID (exact)',
+          contractNo: 'Contract No. (exact)'
+        },
+        statusEnum: {
+          preparing: 'Preparing',
+          pendingSign: 'Pending Review & Signature',
+          signing: 'Signing',
+          signed: 'Signed',
+          failed: 'Failed or Expired',
+          withdrawn: 'Withdrawn or Voided'
+        },
+        drawer: {
+          basic: 'Contract Info',
+          scopeSnapshot: 'Scope Snapshot (Frozen)',
+          prdSnapshot: 'PRD Confirmed Full Text',
+          transitions: 'Action Timeline',
+          transitionsEmpty: 'No action traces yet',
+          prdVersionNo: 'PRD Version',
+          demoVersionNo: 'Demo Version',
+          partyA: 'Party A (Client)',
+          partyB: 'Party B (Provider)',
+          projectScope: 'Project Scope',
+          paymentPlan: 'Payment Plan',
+          scopeDeliverables: 'Deliverables',
+          scopeAcceptance: 'Acceptance',
+          scopeTimeline: 'Timeline',
+          partyASigned: 'Party A Signature',
+          partyBSigned: 'Party B Signature',
+          signedYes: 'Signed',
+          signedNo: 'Unsigned'
+        },
+        action: {
+          advance: 'Advance',
+          fail: 'Fail / Expire',
+          withdraw: 'Withdraw',
+          void: 'Void',
+          sign: 'Mark Signature',
+          record: 'Re-record Draft'
+        },
+        actionModal: {
+          title: 'Contract {action}',
+          confirm: 'Confirm {action}',
+          tip: 'Contract {contractNo} will perform "{action}". The basis will be recorded.',
+          partyA: 'Party A (Client)',
+          partyB: 'Party B (Provider)',
+          basisPlaceholder: 'Required, up to 1000 characters'
+        },
+        recordModal: {
+          title: 'Re-record Draft',
+          confirm: 'Confirm Re-record',
+          tip: 'Contract {contractNo} will be re-recorded under the same number: version +1, needs-update cleared, frozen set re-taken from current order values; the four fields are replaced as a group — empty means unset.',
+          partyAPlaceholder: 'Optional, up to 200 characters (Party A)',
+          partyBPlaceholder: 'Optional, up to 200 characters (Party B)',
+          projectScopePlaceholder: 'Optional, up to 2000 characters (project scope)',
+          paymentPlanPlaceholder: 'Optional, up to 2000 characters (payment plan text)',
+          basisPlaceholder: 'Required, up to 1000 characters'
+        },
+        success: {
+          advance: 'Contract advanced',
+          fail: 'Contract moved to "Failed or Expired"',
+          withdraw: 'Contract withdrawn',
+          void: 'Contract voided',
+          sign: 'Signature recorded',
+          record: 'Draft re-recorded'
+        }
       }
     }
   },

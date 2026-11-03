@@ -64,6 +64,18 @@
  *   行开关列，与配置写共表共留痕）；骨架/harness 内建 403 PRJ_036 锁死、enabled 缺省 400
  *   PRJ_037。错误码数字形＝PRJ 4xxx（4033 查无 404 / 4034 操作者缺 400 / 4035 工具无 404 /
  *   4036 锁死 403 / 4037 目标态缺 400）。
+ *
+ * 合同域（#87，A 批 T1，9 端点；契约正本＝admin HEAD DTO `@Schema`，逐字镜像 provider
+ *   BackofficeContract*）：六态人工推进 1=准备中→2=待核对与签署→3=签署进行中→4=签署完成
+ *   （末边须双方均签），旁落 5=签署失败或过期（自 2/3）、旁支终态 6=已撤回或作废（1/2/3 可达）；
+ *   终态 4/5/6 永不物理删除，撤回/作废后重建＝换新号（POST /contracts/orders/{orderId} 无请求体，
+ *   旧行终态保留）。清单行**不带** needsUpdate/签署位（wire 如此——两字段仅详情 contract 段可观测）；
+ *   needsUpdate＝草稿态（1/2）且冻结集与订单现值不一致的派生标志（record 重录即清零）。
+ *   七写回执均＝单段合同体（Contract，非三段 detail——前端不消费，toast＋回读＋刷新）；
+ *   留痕 transitions 六类动作（1=推进 2=撤回 3=作废 4=签署标记 5=草稿重录 6=失败或过期，
+ *   非迁移动作 from=to）；签署标记不自动迁移状态（「签署完成」由 advance 显式推进）；
+ *   错误族 ORD_02x 数字码透传不判码（ORD_020 查无/021 无边/022·023 依据/024 活跃唯一/
+ *   025·026 冻结集前置/027 双签门禁/028 签署位幂等/031 重录窗口/032 内容超长）。
  */
 declare namespace Api {
   namespace Aiplatform {
@@ -1056,6 +1068,147 @@ declare namespace Api {
       externalId: string;
       displayName: string;
       createdAt: string;
+    }
+
+    /* ---- 合同域（#87 A 批 T1——contracts 9 端点：读 2＋创建重建 1＋六写口；六态人工承接）---- */
+
+    /**
+     * 合同状态（六态人工推进）：1=准备中 2=待核对与签署 3=签署进行中 4=签署完成
+     * 5=签署失败或过期 6=已撤回或作废。线性单向 1→2→3→4（末边须双方均签）；
+     * 5 自 2/3 旁落、6 自 1/2/3 旁支（撤回/作废守卫同、留痕 action 分立）；4/5/6 终态不删。
+     */
+    type ContractStatus = 1 | 2 | 3 | 4 | 5 | 6;
+
+    /** 合同七写动作（门控矩阵与权限码 Record 的键约束；create 重建走订单抽屉入口不在此列）。 */
+    type ContractAction = 'advance' | 'fail' | 'withdraw' | 'void' | 'sign' | 'record';
+
+    /** 留痕动作 code（transitions.action）：1=推进 2=撤回 3=作废 4=签署标记 5=草稿重录 6=失败或过期。 */
+    type ContractTransitionAction = 1 | 2 | 3 | 4 | 5 | 6;
+
+    /**
+     * 合同清单行（GET /contracts items 元素）——**不带** needsUpdate/签署位（wire 如此，
+     * 两字段仅详情可观测）。新在前（TSID 倒序服务端定死）；version 草稿同号重录 +1、重建从 1 起。
+     */
+    interface ContractSummary {
+      /** 合同标识（TSID 十进制串） */
+      id: string;
+      /** 合同号（SG- 风格全局唯一，创建即定格） */
+      contractNo: string;
+      /** 所属订单标识（TSID 十进制串） */
+      orderId: string;
+      status: ContractStatus;
+      statusName: string;
+      version: number;
+      /** Long（分）→ JSON string */
+      amount: string;
+      /** v1 恒 CNY */
+      currency: string;
+      createdAt: string;
+    }
+
+    /**
+     * 合同全字段（详情 contract 段＝七写回执共用同构）——清单行超集：needsUpdate 派生标志、
+     * 四个后台录入预览字段（未录入 null）、范围快照冻结三段（创建/重录时取订单范围文本定格，
+     * 此后不漂移）、双版本引用、双方签署位＋落签时点。签署标记不自动迁移状态（advance 显式推进）。
+     */
+    interface Contract extends ContractSummary {
+      /** 「需更新」派生标志：草稿态（1/2）且冻结集与订单现值不一致；非草稿态恒 false */
+      needsUpdate: boolean;
+      /** 甲方主体（客户方；后台录入，未录入 null） */
+      partyA: string | null;
+      /** 乙方主体（服务方；后台录入，未录入 null） */
+      partyB: string | null;
+      /** 项目范围（后台录入，未录入 null） */
+      projectScope: string | null;
+      /** 付款计划文本面（后台录入，未录入 null；节点对象归付款计划域） */
+      paymentPlan: string | null;
+      /** 范围快照·交付清单（冻结副本） */
+      scopeDeliverables: string;
+      /** 范围快照·验收方式（冻结副本） */
+      scopeAcceptance: string;
+      /** 范围快照·工期口径（冻结副本） */
+      scopeTimeline: string;
+      /** PRD 确认版本号（下单冻结集冗余） */
+      prdVersionNo: number | null;
+      /** Demo 确认版本号引用（下单冻结集；无 Demo 交付的订单 null） */
+      demoVersionNo: number | null;
+      /** 甲方签署位（未签 false） */
+      partyASigned: boolean;
+      /** 甲方落签时点（未签 null） */
+      partyASignedAt: string | null;
+      /** 乙方签署位 */
+      partyBSigned: boolean;
+      /** 乙方落签时点（未签 null） */
+      partyBSignedAt: string | null;
+    }
+
+    /**
+     * 合同详情（GET /contracts/{id}）——承接核对全量面三段：contract 全字段＋PRD 确认版全文
+     * 冗余拷贝（合同自含，报价/录内容的依据面）＋动作留痕时间线（新→旧 append-only 全量）。
+     */
+    interface ContractDetail {
+      contract: Contract;
+      prdSnapshot: string;
+      transitions: ContractTransition[];
+    }
+
+    /** 合同动作留痕行（transitions 元素，新→旧）——迁移类如实记两侧状态、非迁移类（签署标记/草稿重录）from=to。 */
+    interface ContractTransition {
+      action: ContractTransitionAction;
+      actionName: string;
+      fromStatus: ContractStatus;
+      fromStatusName: string;
+      toStatus: ContractStatus;
+      toStatusName: string;
+      /** 依据（人工动作留痕正身，必填） */
+      basis: string;
+      operatorId: string;
+      operatorName: string;
+      createdAt: string;
+    }
+
+    /** GET /contracts 查询参数。分页 1-based 直传；`status` 多选逗号拼接（同订单域 BFF 签名协议）。 */
+    interface ContractSearchParams {
+      page: number;
+      size: number;
+      /** 状态多选（序列化为逗号分隔单值 status=1,5） */
+      status?: ContractStatus[];
+      /** 创建时间起（含），ISO-8601 本地串 */
+      createdFrom?: string;
+      createdTo?: string;
+      /** 所属订单精确（TSID 十进制） */
+      orderId?: string;
+      /** 合同号精确（SG- 串） */
+      contractNo?: string;
+    }
+
+    type ContractFilter = Omit<ContractSearchParams, 'page' | 'size'>;
+
+    /** POST /contracts/{id}/advance|fail|withdraw|void body——依据必填（至多 1000 字，provider 裁决 ORD_022/023）。 */
+    interface ContractActionCommand {
+      basis: string;
+    }
+
+    /** 签署方（sign 命令 party）：1=甲方（客户方） 2=乙方（服务方）。 */
+    type ContractSignParty = 1 | 2;
+
+    /** POST /contracts/{id}/sign body——落一方签署位（已落签幂等拒 409 ORD_028；仅签署进行中可达）。 */
+    interface ContractSignCommand {
+      party: ContractSignParty;
+      basis: string;
+    }
+
+    /**
+     * POST /contracts/{id}/record body——草稿重录五肢整组（仅草稿态 1/2 可达，ORD_031）：
+     * 四预览字段整组录入（空白归一 null＝未录入）＋冻结集取订单现值重新定格＋version+1＋
+     * needsUpdate 清零。内容长度 provider 裁决（ORD_032：主体 200/其余 2000）。
+     */
+    interface ContractRecordCommand {
+      partyA: string | null;
+      partyB: string | null;
+      projectScope: string | null;
+      paymentPlan: string | null;
+      basis: string;
     }
   }
 }

@@ -10,7 +10,7 @@ import { ref } from 'vue';
 import { NButton, NDropdown, NTag } from 'naive-ui';
 import type { DropdownOption } from 'naive-ui';
 import { orderDeliverableTypeTagColor, orderStatusTagColor } from '@/constants/aiplatform';
-import { fetchGetAiplatformOrderList, fetchRetryArchiveAiplatformOrder } from '@/service/api';
+import { fetchCreateAiplatformContractForOrder, fetchGetAiplatformOrderList, fetchRetryArchiveAiplatformOrder } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
@@ -221,6 +221,26 @@ function handleRetryArchive(orderId: string) {
   });
 }
 
+/**
+ * 创建/重建合同（#87）：$dialog 二次确认 → 无请求体 POST。前置门（报价先在/范围已录/活跃
+ * 唯一/已签关门）全在 provider——409/404 走 onError 透传 toast 不判码。成功**不跳转、回执
+ * 不消费**（合同面经侧栏「合同管理」或 orderId 筛选自然可达）；订单自身状态不动，无需刷新。
+ */
+function handleCreateContract(orderId: string) {
+  window.$dialog?.warning({
+    title: $t('page.aiplatform.order.createContractConfirm.title'),
+    content: $t('page.aiplatform.order.createContractConfirm.tip', { orderId }),
+    positiveText: $t('common.confirm'),
+    negativeText: $t('common.cancel'),
+    onPositiveClick: async () => {
+      const { error } = await fetchCreateAiplatformContractForOrder(orderId);
+      if (!error) {
+        window.$message?.success($t('page.aiplatform.order.success.contractCreated'));
+      }
+    }
+  });
+}
+
 /** 行内下拉动作分发（quote/cancel 开弹窗；retryArchive 走父页单点确认，与抽屉事件共用）。 */
 function onAction(orderId: string, key: string) {
   const row = data.value.find(item => item.id === orderId);
@@ -278,7 +298,7 @@ function handleWriteSuccess(successKey: 'quoted' | 'cancelled') {
       />
     </NCard>
 
-    <!-- 详情抽屉（价目史 + PRD 快照 + 按态写操作 + 源码包下载 + 账号档案嵌件） -->
+    <!-- 详情抽屉（价目史 + PRD 快照 + 按态写操作 + 源码包下载 + 账号档案嵌件 + 创建合同入口） -->
     <OrderDetailDrawer
       ref="drawerRef"
       v-model:visible="drawerVisible"
@@ -287,6 +307,7 @@ function handleWriteSuccess(successKey: 'quoted' | 'cancelled') {
       @quote="openQuote"
       @cancel="openCancel"
       @retry="handleRetryArchive"
+      @create-contract="handleCreateContract"
     />
     <OrderQuoteModal
       v-model:visible="quoteModalVisible"

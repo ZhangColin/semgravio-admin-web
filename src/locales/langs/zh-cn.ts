@@ -254,7 +254,8 @@ const local: App.I18n.Schema = {
     aiplatform_skill_assignment: '指派配置',
     aiplatform_skill_draft: '草稿审核',
     aiplatform_agent: '智能体',
-    aiplatform_agent_config: '智能体配置'
+    aiplatform_agent_config: '智能体配置',
+    aiplatform_contract: '合同管理'
   },
   page: {
     login: {
@@ -911,7 +912,8 @@ const local: App.I18n.Schema = {
           quote: '报价',
           requote: '改价',
           cancel: '取消订单',
-          retryArchive: '重试归档'
+          retryArchive: '重试归档',
+          createContract: '创建合同'
         },
         quoteModal: {
           title: '提交报价',
@@ -932,12 +934,17 @@ const local: App.I18n.Schema = {
           retryArchive: '重试归档',
           target: '订单 {orderId}'
         },
+        createContractConfirm: {
+          title: '创建合同',
+          tip: '将为订单 {orderId} 创建合同（冻结集取订单现值；已有活跃合同或前置不满足时将由服务端拒绝并提示）。'
+        },
         success: {
           quoted: '报价成功',
           cancelled: '订单已取消',
           retried: '已触发归档重试',
           downloaded: '源码包下载成功',
-          downloadedDesign: '设计资产包下载成功'
+          downloadedDesign: '设计资产包下载成功',
+          contractCreated: '合同已创建'
         }
       },
       project: {
@@ -1455,6 +1462,89 @@ const local: App.I18n.Schema = {
         accountId: '账号 ID',
         externalId: 'External ID',
         createdAt: '建档时间'
+      },
+      /** 合同域（#87 A 批 T1——六态人工承接：清单/详情三段/七写）。 */
+      contract: {
+        title: '合同管理',
+        detailTitle: '合同详情',
+        contractId: '合同 ID',
+        contractNo: '合同号',
+        orderId: '订单号',
+        status: '状态',
+        version: '版本',
+        amount: '金额',
+        createdAt: '创建时间',
+        detail: '详情',
+        more: '操作',
+        needsUpdate: '需更新',
+        form: {
+          status: '状态（可多选）',
+          createdRange: '创建时间',
+          orderId: '订单号（精确）',
+          contractNo: '合同号（精确）'
+        },
+        statusEnum: {
+          preparing: '准备中',
+          pendingSign: '待核对与签署',
+          signing: '签署进行中',
+          signed: '签署完成',
+          failed: '签署失败或过期',
+          withdrawn: '已撤回或作废'
+        },
+        drawer: {
+          basic: '合同信息',
+          scopeSnapshot: '范围快照（冻结）',
+          prdSnapshot: 'PRD 确认版全文',
+          transitions: '动作时间线',
+          transitionsEmpty: '暂无动作留痕',
+          prdVersionNo: 'PRD 版本号',
+          demoVersionNo: 'Demo 版本号',
+          partyA: '甲方主体',
+          partyB: '乙方主体',
+          projectScope: '项目范围',
+          paymentPlan: '付款计划',
+          scopeDeliverables: '交付清单',
+          scopeAcceptance: '验收方式',
+          scopeTimeline: '工期口径',
+          partyASigned: '甲方签署位',
+          partyBSigned: '乙方签署位',
+          signedYes: '已签',
+          signedNo: '未签'
+        },
+        action: {
+          advance: '推进',
+          fail: '失败或过期',
+          withdraw: '撤回',
+          void: '作废',
+          sign: '签署标记',
+          record: '草稿重录'
+        },
+        actionModal: {
+          title: '合同{action}',
+          confirm: '确认{action}',
+          tip: '合同 {contractNo} 将执行「{action}」，操作依据将留痕。',
+          partyA: '甲方（客户方）',
+          partyB: '乙方（服务方）',
+          basisPlaceholder: '必填，至多 1000 字'
+        },
+        recordModal: {
+          title: '草稿重录',
+          confirm: '确认重录',
+          tip: '合同 {contractNo} 同号重录：版本 +1、「需更新」清零、冻结集取订单现值重新定格；四字段整组替换，空＝未录入。',
+          partyAPlaceholder: '选填，至多 200 字（甲方主体）',
+          partyBPlaceholder: '选填，至多 200 字（乙方主体）',
+          projectScopePlaceholder: '选填，至多 2000 字（项目范围）',
+          paymentPlanPlaceholder: '选填，至多 2000 字（付款计划文本）',
+          basisPlaceholder: '必填，至多 1000 字'
+        },
+        success: {
+          advance: '合同已推进',
+          fail: '合同已旁落「签署失败或过期」',
+          withdraw: '合同已撤回',
+          void: '合同已作废',
+          sign: '签署位已落定',
+          record: '草稿已重录'
+        }
       }
     }
   },

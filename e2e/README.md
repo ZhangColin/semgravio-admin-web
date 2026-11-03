@@ -1,4 +1,4 @@
-# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派））
+# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域）
 
 headless Chrome（`playwright-core` 系统 channel，**免下载浏览器**）+ `page.route` 全量 mock。
 mock fixtures 的字段形状**派生自 admin :8081 `/v3/api-docs`**（各域 `support/*-fixtures.mjs` 头注释标明
@@ -82,6 +82,20 @@ e2e/
                            （$dialog 确认→old 四值 PUT 写回＝留新痕→双卡刷新）/工具面三槽位块
                            （slotName 直读＋kind 三值映射＋骨架/内建 disabled 恒开）/增强工具受控
                            开关即时 PUT＋失败回滚/失败透传 toast（400 PRJ_034＋403 PRJ_036））
+  contract.e2e.mjs        合同域验收流（#87 A 批 T1：清单契约字段（contractNo/id/orderId mono＋
+                           statusName tag＋version＋金额分格式化）/四维筛选（status 多选逗号＋
+                           createdFrom·To＋orderId/contractNo 精确）/分页 1-based/详情抽屉 720
+                           三段（全字段含 needsUpdate tag＋范围快照冻结三段＋双方签署位·时点＋
+                           双版本引用/PRD 全文/transitions 时间线新→旧）/七写双入口＋六态×动作
+                           门控矩阵（草稿/签署态选项集互异）/advance 末边双签可观测门控（未双签
+                           不出推进钮→落签解锁）＋failNext 竞态 409 ORD_027 透传/sign party 单选＋
+                           已落位 409 ORD_028 幂等拒透传/record 五肢整组（预填·空禁用·v+1·
+                           needsUpdate 清零）/订单抽屉创建合同（常给＋409 ORD_024 透传＋成功
+                           不跳转＋orderId 筛选可达新行））
+  contract-fixtures.mjs   合同 fixtures（AiplatformContractSummary/Detail/TransitionResponse 形状——
+                           六态 12 行（含撤回/作废同态不同动作对行）＋动作六类跨行全覆盖＋
+                           Long id 恒 string；六写与创建变异由 harness applyContract* 行·详情
+                           双端就地改（守卫族自然裁决：ORD_020/021/022/024/025/027/028/031））
 ```
 
 技能域 fixtures 一并承载指派态（`SKILL_ASSIGNMENTS` 三槽初始指派——PUT 由 harness 就地整包替换，

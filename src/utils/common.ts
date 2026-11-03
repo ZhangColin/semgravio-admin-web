@@ -35,6 +35,20 @@ export function tsToUtcInstant(ts: number): string {
 }
 
 /**
+ * Serialize a picker timestamp as an ISO-8601 **local** string (no timezone suffix).
+ *
+ * 订单/项目/合同等筛选条创建时间区间的契约形（BFF `@DateTimeFormat(iso = DATE_TIME)`
+ * `LocalDateTime`）：闭区间含两端、本地串无 Z（如 `2026-09-01T00:00:00`）——与
+ * tsToUtcInstant（成本域 UTC 带 Z）是**两种契约形**勿混用。tsToIso 家族第 8 份拷贝
+ * （#87 合同筛选条）起收编于此；存量域内拷贝（order/project/payment）留待各域顺路迁移。
+ *
+ * @param ts 毫秒时间戳（NDatePicker value）
+ */
+export function tsToIsoLocal(ts: number): string {
+  return dayjs(ts).format('YYYY-MM-DDTHH:mm:ss');
+}
+
+/**
  * Format a money amount (integer cents) for display as `¥1,234.56`.
  *
  * payment 域金额单位为**整数分**（`Long`，北向 JSON 为 **string**——框架全局 Long→ToStringSerializer，

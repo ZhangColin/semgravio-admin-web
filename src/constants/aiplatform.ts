@@ -298,3 +298,70 @@ export const AGENT_CONFIG_UPDATE_AUTH = 'admin:aiplatform:agent-config:update';
 
 /** 工具开关权限码（门控增强工具 NSwitch 可操作；无码 disabled 呈现态）。 */
 export const AGENT_TOOL_TOGGLE_AUTH = 'admin:aiplatform:agent-tool:toggle';
+
+/* ---- 合同域（#87 A 批 T1——六态人工承接；门控矩阵单点＝workspace 先例）---- */
+
+/**
+ * 合同状态标签色（语义：准备中 info（新稿）/ 待核对与签署 primary（操作主位）/ 签署进行中
+ * warning（等待外部签署）/ 签署完成 success / 失败或过期红 / 终态灰）。
+ */
+export const contractStatusTagColor: Record<Api.Aiplatform.ContractStatus, NaiveUI.ThemeColor> = {
+  1: 'info',
+  2: 'primary',
+  3: 'warning',
+  4: 'success',
+  5: 'error',
+  6: 'default'
+};
+
+/** 状态筛选下拉（多选；手写 number options，组件内渲染时翻译——同订单域多选逗号串）。 */
+export const contractStatusOptions: CommonType.Option<Api.Aiplatform.ContractStatus, App.I18n.I18nKey>[] = [
+  { value: 1, label: 'page.aiplatform.contract.statusEnum.preparing' },
+  { value: 2, label: 'page.aiplatform.contract.statusEnum.pendingSign' },
+  { value: 3, label: 'page.aiplatform.contract.statusEnum.signing' },
+  { value: 4, label: 'page.aiplatform.contract.statusEnum.signed' },
+  { value: 5, label: 'page.aiplatform.contract.statusEnum.failed' },
+  { value: 6, label: 'page.aiplatform.contract.statusEnum.withdrawn' }
+];
+
+/**
+ * 六态×七写门控矩阵（行下拉与抽屉动作条双入口共用单点，防两处门控漂移——workspace 先例）。
+ * 守卫链全在 provider（ORD_021 无边等兜底透传），本函数只收**可前置观测子集**：
+ * - 终态（4/5/6）：七写全拒（4 永不删、5/6 重建走订单抽屉创建口）。
+ * - advance：线性单步 1→2→3；末边 3→4 须双方均签（ORD_027）——签署位仅详情可观测，
+ *   **行清单 wire 无此字段 → 传 undefined 时 3 态不出推进**（保守门控，末边推进走抽屉）。
+ * - fail：仅自 2/3 可达（用户放弃核对或超期未签）。
+ * - sign：仅 3（签署进行中）可落签；已落签署位幂等拒（ORD_028 服务端裁决）。
+ * - record：仅草稿态 1/2（「需更新」处置正路；3 起 ORD_031 变动走撤回/作废重建）。
+ * - withdraw/void：自任何非终态可达（守卫同、留痕 action 分立可审计）。
+ */
+export function availableContractActions(meta: {
+  status: Api.Aiplatform.ContractStatus;
+  /** 末边双签门控观测位——行清单无签署位传 undefined（3 态不出推进）；抽屉传详情实值。 */
+  partyASigned?: boolean;
+  partyBSigned?: boolean;
+}): Api.Aiplatform.ContractAction[] {
+  const { status } = meta;
+  if (status === 4 || status === 5 || status === 6) return [];
+  const actions: Api.Aiplatform.ContractAction[] = [];
+  if (status === 1 || status === 2) actions.push('advance');
+  if (status === 3 && meta.partyASigned === true && meta.partyBSigned === true) actions.push('advance');
+  if (status === 3) actions.push('sign');
+  if (status === 1 || status === 2) actions.push('record');
+  if (status === 2 || status === 3) actions.push('fail');
+  actions.push('withdraw', 'void');
+  return actions;
+}
+
+/** 合同六写权限码（hasAuth 逐写门控——读写分权、每写一码；创建重建第七写独立 `CONTRACT_CREATE_AUTH` 挂订单抽屉入口）。 */
+export const contractWriteAuth: Record<Api.Aiplatform.ContractAction, string> = {
+  advance: 'admin:aiplatform:contract:advance',
+  fail: 'admin:aiplatform:contract:fail',
+  withdraw: 'admin:aiplatform:contract:withdraw',
+  void: 'admin:aiplatform:contract:void',
+  sign: 'admin:aiplatform:contract:sign',
+  record: 'admin:aiplatform:contract:record'
+};
+
+/** 创建/重建权限码（订单抽屉动作行「创建合同」入口常给门控——在场/可建由服务端 409 裁决透传）。 */
+export const CONTRACT_CREATE_AUTH = 'admin:aiplatform:contract:create';

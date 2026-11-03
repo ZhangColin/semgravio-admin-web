@@ -1136,6 +1136,7 @@ declare namespace App {
               requote: string;
               cancel: string;
               retryArchive: string;
+              createContract: string;
             };
             quoteModal: {
               title: string;
@@ -1156,12 +1157,17 @@ declare namespace App {
               retryArchive: string;
               target: string;
             };
+            createContractConfirm: {
+              title: string;
+              tip: string;
+            };
             success: {
               quoted: string;
               cancelled: string;
               retried: string;
               downloaded: string;
               downloadedDesign: string;
+              contractCreated: string;
             };
           };
           project: {
@@ -1675,6 +1681,89 @@ declare namespace App {
             accountId: string;
             externalId: string;
             createdAt: string;
+          };
+          /** 合同域（#87 A 批 T1——六态人工承接：清单/详情三段/七写）。 */
+          contract: {
+            title: string;
+            detailTitle: string;
+            contractId: string;
+            contractNo: string;
+            orderId: string;
+            status: string;
+            version: string;
+            amount: string;
+            createdAt: string;
+            detail: string;
+            more: string;
+            needsUpdate: string;
+            form: {
+              status: string;
+              createdRange: string;
+              orderId: string;
+              contractNo: string;
+            };
+            statusEnum: {
+              preparing: string;
+              pendingSign: string;
+              signing: string;
+              signed: string;
+              failed: string;
+              withdrawn: string;
+            };
+            drawer: {
+              basic: string;
+              scopeSnapshot: string;
+              prdSnapshot: string;
+              transitions: string;
+              transitionsEmpty: string;
+              prdVersionNo: string;
+              demoVersionNo: string;
+              partyA: string;
+              partyB: string;
+              projectScope: string;
+              paymentPlan: string;
+              scopeDeliverables: string;
+              scopeAcceptance: string;
+              scopeTimeline: string;
+              partyASigned: string;
+              partyBSigned: string;
+              signedYes: string;
+              signedNo: string;
+            };
+            action: {
+              advance: string;
+              fail: string;
+              withdraw: string;
+              void: string;
+              sign: string;
+              record: string;
+            };
+            actionModal: {
+              title: string;
+              confirm: string;
+              tip: string;
+              partyA: string;
+              partyB: string;
+              basisPlaceholder: string;
+            };
+            recordModal: {
+              title: string;
+              confirm: string;
+              tip: string;
+              partyAPlaceholder: string;
+              partyBPlaceholder: string;
+              projectScopePlaceholder: string;
+              paymentPlanPlaceholder: string;
+              basisPlaceholder: string;
+            };
+            success: {
+              advance: string;
+              fail: string;
+              withdraw: string;
+              void: string;
+              sign: string;
+              record: string;
+            };
           };
         };
       };

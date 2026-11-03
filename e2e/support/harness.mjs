@@ -1,5 +1,5 @@
 /**
- * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），共用 seam）——page.route mock + 断言汇总。
+ * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，共用 seam）——page.route mock + 断言汇总。
  *
  * mock 派生自 admin :8081 `/v3/api-docs`（fixtures 见各域 support/*-fixtures.mjs）；
  * 错误信封按 AiplatformUpstreamErrorAdvice 形状：HTTP 状态照抄 provider、
@@ -55,13 +55,14 @@ export async function waitForMessage(page, predicate, timeoutMs = 10000) {
  * 安装 /proxy-default/** 全量 mock（auth / menus.my / aiplatform 各域）。
  *
  * @param page playwright page
- * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
- * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean}}}
+ * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
+ * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean}}}
  *          calls=拦截到的请求流水（断言查询参数用）；state.failNext*＝下一次对应写抛业务错误信封
  *          （quote/workspaceWrite/reprice 抛 409，material 抛 400/404，skill 按动作族抛 502/400/409/409/400，
  *          skillDraftPromote 抛 409 SKL_016、skillDraftReject 抛 400 SKL_018，
  *          agentConfigUpdate 抛 400、agentToolToggle 抛 403——透传 toast 断言用；
- *          skillPrecheck 抛 400 SKL_011＝预检失败注入（错误族与 PUT 指派同源））
+ *          skillPrecheck 抛 400 SKL_011＝预检失败注入（错误族与 PUT 指派同源）；
+ *          contractWrite 抛 409 ORD_027 双签门禁竞态——advance 末边可观测门控的兜底透传靶）
  */
 export async function installAiplatformMocks(page, fixtures) {
   const calls = [];
@@ -79,7 +80,8 @@ export async function installAiplatformMocks(page, fixtures) {
     failNextSkillDraftPromote: false,
     failNextSkillDraftReject: false,
     failNextAgentConfigUpdate: false,
-    failNextAgentToolToggle: false
+    failNextAgentToolToggle: false,
+    failNextContractWrite: false
   };
 
   const json = (route, status, body) =>
@@ -519,6 +521,133 @@ export async function installAiplatformMocks(page, fixtures) {
     }));
   }
 
+  /* ---- 合同域变异（#87；provider BackofficeContract 六态推进镜像——行·详情双端就地变异，
+   * 列表刷新与抽屉回读均拿到新事实；守卫族自然裁决：ORD_021 无边/ORD_024 活跃唯一/ORD_025 无报价/
+   * ORD_027 双签门禁/ORD_028 签署位幂等/ORD_031 重录窗口/ORD_022 依据缺失）---- */
+
+  const ordError = (route, status, code, message) =>
+    json(route, status, { code, message, data: null, requestId: 'e2e-mock', errors: null });
+
+  /** 合同详情体（detail 三段的 contract 段——七写回执同形：单段合同体非三段）。 */
+  function contractOf(id) {
+    return fixtures.contract.CONTRACT_DETAILS[id]?.contract ?? null;
+  }
+
+  /** 行·详情同步落留痕（unshift 新→旧；操作者 E2E Mock 模拟 X-User 头落痕）。 */
+  function pushContractTransition(id, action, from, to, basis) {
+    const d = fixtures.contract.CONTRACT_DETAILS[id];
+    d.transitions.unshift({
+      action,
+      actionName: fixtures.contract.CONTRACT_ACTION_NAMES[action],
+      fromStatus: from,
+      fromStatusName: fixtures.contract.CONTRACT_STATUS_NAMES[from],
+      toStatus: to,
+      toStatusName: fixtures.contract.CONTRACT_STATUS_NAMES[to],
+      basis,
+      operatorId: '1',
+      operatorName: 'E2E Mock',
+      createdAt: fixtures.contract.CONTRACT_ACTION_AT
+    });
+  }
+
+  /** 状态迁移共肢：行·详情同步改 status/statusName＋落推进类留痕。 */
+  function applyContractTransition(id, action, to, basis) {
+    const d = fixtures.contract.CONTRACT_DETAILS[id];
+    const from = d.contract.status;
+    d.contract.status = to;
+    d.contract.statusName = fixtures.contract.CONTRACT_STATUS_NAMES[to];
+    const row = fixtures.contract.CONTRACT_ROWS.find(r => r.id === id);
+    if (row) {
+      row.status = to;
+      row.statusName = d.contract.statusName;
+    }
+    pushContractTransition(id, action, from, to, basis);
+    return { ...d.contract };
+  }
+
+  /** advance：线性单步 1→2→3→4；末边 3→4 双签守卫（ORD_027——可观测门控的兜底竞态靶）。 */
+  function applyContractAdvance(id, basis) {
+    const c = contractOf(id);
+    if (!c) return { error: [404, 5020, '合同不存在（ORD_020）'] };
+    if (c.status < 1 || c.status > 3) return { error: [409, 5021, '合同已终态，无推进边（ORD_021）'] };
+    if (c.status === 3 && !(c.partyASigned && c.partyBSigned)) {
+      return { error: [409, 5027, '双方签署位未均签，不可推进至签署完成（ORD_027）'] };
+    }
+    return { receipt: applyContractTransition(id, 1, c.status + 1, basis) };
+  }
+
+  /** fail：旁落终态 5，仅自 2/3 可达。 */
+  function applyContractFail(id, basis) {
+    const c = contractOf(id);
+    if (!c) return { error: [404, 5020, '合同不存在（ORD_020）'] };
+    if (c.status !== 2 && c.status !== 3) return { error: [409, 5021, '当前状态不可旁落失败或过期（ORD_021）'] };
+    return { receipt: applyContractTransition(id, 6, 5, basis) };
+  }
+
+  /** withdraw/void：守卫同（自任何非终态）、去向同（6），仅留痕 action 分立可审计。 */
+  function applyContractSide(id, action, basis) {
+    const c = contractOf(id);
+    if (!c) return { error: [404, 5020, '合同不存在（ORD_020）'] };
+    if (c.status < 1 || c.status > 3) return { error: [409, 5021, '合同已终态，不可再动（ORD_021）'] };
+    return { receipt: applyContractTransition(id, action, 6, basis) };
+  }
+
+  /** sign：仅签署进行中可落；已落签署位幂等拒（ORD_028——自然裁决，不靠注入）。 */
+  function applyContractSign(id, party, basis) {
+    const c = contractOf(id);
+    if (!c) return { error: [404, 5020, '合同不存在（ORD_020）'] };
+    if (c.status !== 3) return { error: [409, 5021, '仅签署进行中可落签署位（ORD_021）'] };
+    const signedKey = party === 1 ? 'partyASigned' : 'partyBSigned';
+    const atKey = party === 1 ? 'partyASignedAt' : 'partyBSignedAt';
+    if (c[signedKey]) return { error: [409, 5028, '该方签署位已落定，幂等拒绝（ORD_028）'] };
+    c[signedKey] = true;
+    c[atKey] = fixtures.contract.CONTRACT_ACTION_AT;
+    pushContractTransition(id, 4, 3, 3, basis);
+    return { receipt: { ...c } };
+  }
+
+  /**
+   * record：仅草稿态（1/2）可达（ORD_031）；四预览字段整组录入＋version+1＋needsUpdate 清零＋
+   * 留痕非迁移 from=to（冻结集重取现值 mock 不复算——amount/scope 原样定格）。
+   */
+  function applyContractRecord(id, command) {
+    const c = contractOf(id);
+    if (!c) return { error: [404, 5020, '合同不存在（ORD_020）'] };
+    if (c.status !== 1 && c.status !== 2) return { error: [409, 5031, '签署进行中起变动走撤回/作废重建（ORD_031）'] };
+    c.partyA = command.partyA ?? null;
+    c.partyB = command.partyB ?? null;
+    c.projectScope = command.projectScope ?? null;
+    c.paymentPlan = command.paymentPlan ?? null;
+    c.needsUpdate = false;
+    c.version += 1;
+    const row = fixtures.contract.CONTRACT_ROWS.find(r => r.id === id);
+    if (row) row.version = c.version;
+    pushContractTransition(id, 5, c.status, c.status, command.basis);
+    return { receipt: { ...c } };
+  }
+
+  /**
+   * 创建/重建：前置门自然裁决——订单不存在（ORD_001）/未报价（ORD_025）/已有活跃合同（ORD_024，
+   * 预检语义＝部分唯一索引）；成功＝新号新合同 unshift 清单首＋详情随建（旧合同终态保留不动）。
+   */
+  function applyContractCreate(orderId) {
+    const order = fixtures.order?.ORDER_DETAILS[orderId] ?? fixtures.order?.ORDER_ROWS.find(r => r.id === orderId);
+    if (!order) return { error: [404, 5001, '订单不存在（ORD_001）'] };
+    if (order.status === 1) return { error: [409, 5025, '尚无报价，先报价再创建合同（ORD_025）'] };
+    const active = fixtures.contract.CONTRACT_ROWS.some(r => r.orderId === orderId && r.status >= 1 && r.status <= 3);
+    if (active) return { error: [409, 5024, '该订单已有活跃合同（ORD_024）'] };
+    const created = { ...fixtures.contract.CREATED_CONTRACT, orderId };
+    if (order.amount) created.amount = order.amount;
+    fixtures.contract.CONTRACT_ROWS.unshift(created);
+    fixtures.contract.CONTRACT_DETAILS[created.id] = {
+      // 详情全字段＝CREATED_DETAIL 预览字段集 + 新行摘要字段（amount/orderId 等以本单为准）
+      contract: { ...fixtures.contract.CREATED_DETAIL.contract, ...created },
+      prdSnapshot: fixtures.contract.CREATED_DETAIL.prdSnapshot,
+      transitions: []
+    };
+    return { receipt: { ...fixtures.contract.CONTRACT_DETAILS[created.id].contract } };
+  }
+
   await page.route('**/proxy-default/**', async route => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/proxy-default', '');
@@ -573,7 +702,15 @@ export async function installAiplatformMocks(page, fixtures) {
             { code: 'admin:aiplatform:skill-draft:reject', name: 'AI 平台 / 草稿拒绝' },
             { code: 'admin:aiplatform:agent-config:update', name: 'AI 平台 / 智能体配置更新' },
             { code: 'admin:aiplatform:agent-tool:toggle', name: 'AI 平台 / 智能体工具开关' },
-            { code: 'admin:aiplatform:account:read', name: 'AI 平台 / 账号档案查看' }
+            { code: 'admin:aiplatform:account:read', name: 'AI 平台 / 账号档案查看' },
+            { code: 'admin:aiplatform:contract:read', name: 'AI 平台 / 合同查看' },
+            { code: 'admin:aiplatform:contract:create', name: 'AI 平台 / 合同创建重建' },
+            { code: 'admin:aiplatform:contract:advance', name: 'AI 平台 / 合同推进' },
+            { code: 'admin:aiplatform:contract:fail', name: 'AI 平台 / 合同失败或过期' },
+            { code: 'admin:aiplatform:contract:withdraw', name: 'AI 平台 / 合同撤回' },
+            { code: 'admin:aiplatform:contract:void', name: 'AI 平台 / 合同作废' },
+            { code: 'admin:aiplatform:contract:sign', name: 'AI 平台 / 合同签署标记' },
+            { code: 'admin:aiplatform:contract:record', name: 'AI 平台 / 合同草稿重录' }
           ],
           menus: []
         },
@@ -740,6 +877,20 @@ export async function installAiplatformMocks(page, fixtures) {
                   i18nKey: 'route.aiplatform_skill_draft',
                   parentId: '82',
                   sortOrder: 10,
+                  menuType: 2,
+                  status: 1
+                },
+                {
+                  id: '260',
+                  menuName: '合同管理',
+                  routeName: 'aiplatform_contract',
+                  routePath: '/aiplatform/contract',
+                  component: 'view.aiplatform_contract',
+                  icon: 'carbon:document-signed',
+                  iconType: 1,
+                  i18nKey: 'route.aiplatform_contract',
+                  parentId: '82',
+                  sortOrder: 11,
                   menuType: 2,
                   status: 1
                 }
@@ -997,6 +1148,72 @@ export async function installAiplatformMocks(page, fixtures) {
         const detail = fixtures.material.MATERIAL_DETAILS[deleteMatch[1]];
         if (detail) return json(route, 200, { code: 200, message: 'ok', data: detail, requestId: 'e2e-mock', errors: null });
         return knw404();
+      }
+    }
+
+    // ---- 合同域（#87；六态人工承接——清单四维检索/详情三段/创建重建/六写口。
+    // 守卫族自然裁决（ORD_020/021/022/024/025/027/028/031）＋failNextContractWrite 竞态注入；
+    // 行·详情双端就地变异——列表刷新与抽屉回读均拿到新事实）----
+    if (fixtures.contract) {
+      const ord = (status, code, message) => ordError(route, status, code, message);
+      const query = url.searchParams;
+      if (path === '/aiplatform/contracts' && method === 'GET') {
+        let rows = [...fixtures.contract.CONTRACT_ROWS];
+        const status = query.get('status');
+        if (status) {
+          const codes = status.split(',').map(Number);
+          rows = rows.filter(row => codes.includes(row.status));
+        }
+        const orderId = query.get('orderId');
+        if (orderId) rows = rows.filter(row => row.orderId === orderId);
+        const contractNo = query.get('contractNo');
+        if (contractNo) rows = rows.filter(row => row.contractNo === contractNo);
+        rows = filterByCreatedRange(rows, query);
+        return json(route, 200, paginate(rows, query));
+      }
+      // 创建/重建（无请求体；先于 /{id} 与 /{id}/{action} 匹配——路径两段不互叠，稳妥起见置前）
+      const contractCreateMatch = path.match(/^\/aiplatform\/contracts\/orders\/([^/]+)$/);
+      if (contractCreateMatch && method === 'POST') {
+        const result = applyContractCreate(contractCreateMatch[1]);
+        if (result.error) return ord(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+      const contractMatch = path.match(/^\/aiplatform\/contracts\/([^/]+)(\/(advance|fail|withdraw|void|sign|record))?$/);
+      if (contractMatch) {
+        const [, id, , action] = contractMatch;
+        const detail = fixtures.contract.CONTRACT_DETAILS[id];
+        if (!detail) return ord(404, 5020, '合同不存在（ORD_020）');
+        if (!action && method === 'GET') {
+          return json(route, 200, { code: 200, message: 'ok', data: detail, requestId: 'e2e-mock', errors: null });
+        }
+        if (action && method === 'POST') {
+          const command = JSON.parse(route.request().postData() ?? '{}');
+          // 依据必填（ORD_022——前端必填先行拦截，此为 wire 诚实兜底）
+          if (!command.basis || String(command.basis).trim() === '') {
+            return ord(400, 5022, '操作依据不能为空白（ORD_022）');
+          }
+          // 竞态注入：双签门禁 ORD_027 兜底透传靶（按钮可观测门控之外的服务端裁决）
+          if (state.failNextContractWrite) {
+            state.failNextContractWrite = false;
+            return ord(409, 5027, '双方签署位未均签，不可推进至签署完成（ORD_027）');
+          }
+          const basis = String(command.basis).trim();
+          let result;
+          if (action === 'advance') result = applyContractAdvance(id, basis);
+          else if (action === 'fail') result = applyContractFail(id, basis);
+          else if (action === 'withdraw') result = applyContractSide(id, 2, basis);
+          else if (action === 'void') result = applyContractSide(id, 3, basis);
+          else if (action === 'sign') {
+            if (command.party !== 1 && command.party !== 2) {
+              return ord(400, 400, 'party 取值非法（1=甲方 2=乙方）');
+            }
+            result = applyContractSign(id, command.party, basis);
+          } else {
+            result = applyContractRecord(id, command);
+          }
+          if (result.error) return ord(...result.error);
+          return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+        }
       }
     }
 

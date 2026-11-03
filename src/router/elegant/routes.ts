@@ -88,6 +88,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         ]
       },
       {
+        name: 'aiplatform_contract',
+        path: '/aiplatform/contract',
+        component: 'view.aiplatform_contract',
+        meta: {
+          title: 'aiplatform_contract',
+          i18nKey: 'route.aiplatform_contract'
+        }
+      },
+      {
         name: 'aiplatform_cost',
         path: '/aiplatform/cost',
         component: 'view.aiplatform_cost',

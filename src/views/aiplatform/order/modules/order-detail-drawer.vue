@@ -4,7 +4,8 @@
  *
  * 写按钮按态门控（未支付=报价/改价+取消；已支付=重试归档）+ hasAuth 逐写码；
  * 下载按钮按交付物类型自适应（#76：2=系统→源码包；1/3→设计资产包）＝读码、不按支付态门控。
- * 报价/取消弹窗在父页统一挂载（抽屉发事件）；重试归档 $dialog 二次确认内联；
+ * 创建/重建合同按钮常给（#87：仅 hasAuth，不按态/在场门控——服务端 409 裁决透传）。
+ * 报价/取消弹窗在父页统一挂载（抽屉发事件）；重试归档/创建合同 $dialog 二次确认在父页收口；
  * 写成功回读详情 + emit('updated') 通知列表刷新。
  */
 import { computed, ref, watch } from 'vue';
@@ -13,7 +14,7 @@ import type { TableColumns } from 'naive-ui/es/data-table/src/interface';
 import { fetchDownloadOrderDesignPackage, fetchDownloadOrderSourcePackage, fetchGetAiplatformOrder } from '@/service/api';
 import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
-import { orderDeliverableTypeTagColor, orderStatusTagColor } from '@/constants/aiplatform';
+import { CONTRACT_CREATE_AUTH, orderDeliverableTypeTagColor, orderStatusTagColor } from '@/constants/aiplatform';
 import { formatDateTime, formatMoney, saveBlobFile } from '@/utils/common';
 import AccountProfile from '../../modules/account-profile.vue';
 
@@ -32,6 +33,8 @@ const emit = defineEmits<{
   cancel: [orderId: string];
   /** 请求重试归档（$dialog 二次确认在父页单点实现，同 account 先例）。 */
   retry: [orderId: string];
+  /** 请求创建/重建合同（#87——$dialog 确认在父页单点；成功不跳转、回执不消费）。 */
+  createContract: [orderId: string];
 }>();
 
 const visible = defineModel<boolean>('visible', { default: false });
@@ -69,6 +72,11 @@ const canRetryArchive = computed(
   () => detail.value?.status === 3 && hasAuth('admin:aiplatform:order:retry-archive')
 );
 const canDownload = computed(() => hasAuth('admin:aiplatform:order:read'));
+/**
+ * 创建/重建合同（#87）：按钮**常给**（仅 hasAuth 门控，不按订单态/合同在场门控——订单响应
+ * 不带合同在场标志不可观测；在场/可建由服务端 409 ORD_024/025 等裁决透传）。
+ */
+const canCreateContract = computed(() => detail.value !== null && hasAuth(CONTRACT_CREATE_AUTH));
 
 function handleQuote() {
   const d = detail.value;
@@ -156,6 +164,9 @@ defineExpose({ reload: loadDetail });
                 ? $t('page.aiplatform.order.drawer.downloadPackage')
                 : $t('page.aiplatform.order.drawer.downloadDesignPackage')
             }}
+          </NButton>
+          <NButton v-if="canCreateContract" type="primary" ghost size="small" @click="emit('createContract', detail.id)">
+            {{ $t('page.aiplatform.order.action.createContract') }}
           </NButton>
         </div>
 

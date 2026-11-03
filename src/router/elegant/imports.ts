@@ -22,6 +22,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   login: () => import("@/views/_builtin/login/index.vue"),
   account_list: () => import("@/views/account/list/index.vue"),
   aiplatform_agent_config: () => import("@/views/aiplatform/agent_config/index.vue"),
+  aiplatform_contract: () => import("@/views/aiplatform/contract/index.vue"),
   aiplatform_cost: () => import("@/views/aiplatform/cost/index.vue"),
   aiplatform_material: () => import("@/views/aiplatform/material/index.vue"),
   aiplatform_order: () => import("@/views/aiplatform/order/index.vue"),
