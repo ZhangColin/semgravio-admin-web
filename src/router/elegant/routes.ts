@@ -130,6 +130,15 @@ export const generatedRoutes: GeneratedRoute[] = [
               title: 'aiplatform_model_provider',
               i18nKey: 'route.aiplatform_model_provider'
             }
+          },
+          {
+            name: 'aiplatform_model_tier',
+            path: '/aiplatform/model/tier',
+            component: 'view.aiplatform_model_tier',
+            meta: {
+              title: 'aiplatform_model_tier',
+              i18nKey: 'route.aiplatform_model_tier'
+            }
           }
         ]
       },

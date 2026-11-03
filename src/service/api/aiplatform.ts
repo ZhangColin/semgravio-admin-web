@@ -67,6 +67,13 @@
  *   保持的 round-trip 安全语义）；远端拉取每次全量真拉无缓存、对照目录驱动「勾选入库」
  *   （复用档位创建写口 POST /model-tiers——跨域码 model-tier:create）。
  *
+ * 模型档位域（#90 B 批 T2，档位 6 端点）：tierKey＝语义键（绑定引用腿——升模型版本/换
+ *   供应商＝改档位行指向而全部绑定自动跟上）；清单按语义键序无分页；更新三肢终态替换＋
+ *   enabled 缺省＝保持（displayName 空＝清空回落语义键，与通道 apiKey「留空＝保持」有意
+ *   不同）；删除被绑定引用拒 409 PRJ_073（临时下线用停用不删行）；留痕 append-only 跨行
+ *   存活，回滚＝旧值快照写回（行在＝PUT、行已删＝按旧值重建——前端形态＝预填表单非直接
+ *   PUT）。单行 GET 与清单行同形且清单即全量，不另设调用面（供应商页同口径）。
+ *
  * 付款核验域（#89 A 批 T2，5 端点）：嵌订单抽屉「付款核验」签（无独立页——付款域无统一
  *   顶层路径，照 provider 路由原形挂 orders/{orderId}/payment-plan* 与 payment-vouchers）。
  *   节点五态（v1 只走凭证核验 1→4→5）/全额判定/打回守卫/重录窗口全由 provider 裁决
@@ -526,9 +533,29 @@ export function fetchGetAiplatformModelProviderTraces(providerKey: string) {
   return request<Api.Aiplatform.ModelProviderTrace[]>({ url: `/aiplatform/model-providers/${providerKey}/traces`, method: 'get' });
 }
 
-/** POST /aiplatform/model-tiers——档位创建（对照 drawer 内嵌入库复用此写口：providerKey＝本通道、modelName＝所选条目 modelId；hasAuth model-tier:create 跨域码）。撞名 409 PRJ_068、通道不存在 400 PRJ_071。回执＝档位行（不消费：toast＋本地对照态更新）。 */
+/** POST /aiplatform/model-tiers——档位创建（创建即可被绑定；对照 drawer 内嵌入库复用此写口：providerKey＝本通道、modelName＝所选条目 modelId）。撞名 409 PRJ_068、通道不存在 400 PRJ_071（先建通道再挂档位）、模型名缺失 400 PRJ_070。回执＝档位行（不消费：toast＋刷新）。 */
 export function fetchCreateAiplatformModelTier(data: Api.Aiplatform.ModelTierCreateCommand) {
   return request<Api.Aiplatform.ModelTier>({ url: '/aiplatform/model-tiers', method: 'post', data });
+}
+
+/** GET /aiplatform/model-tiers——档位清单（无分页全量、按语义键序；enabled=true 键集＝绑定改档写口的放行值域——停用档如实呈现不解释）。 */
+export function fetchGetAiplatformModelTierList() {
+  return request<Api.Aiplatform.ModelTier[]>({ url: '/aiplatform/model-tiers', method: 'get' });
+}
+
+/** PUT /aiplatform/model-tiers/{tierKey}——档位更新（providerKey/modelName/displayName 终态替换——升模型版本/换供应商即改指向、全部绑定自动跟上；displayName null＝清空回落语义键；enabled 缺省＝保持现值）。档位不存在 404 PRJ_066。回执＝更新后行（不消费：toast＋刷新）。 */
+export function fetchUpdateAiplatformModelTier(tierKey: string, data: Api.Aiplatform.ModelTierUpdateCommand) {
+  return request<Api.Aiplatform.ModelTier>({ url: `/aiplatform/model-tiers/${tierKey}`, method: 'put', data });
+}
+
+/** DELETE /aiplatform/model-tiers/{tierKey}——删除档位（仍被智能体配置绑定即 409 PRJ_073 透传——临时下线用停用不删行；删成落删除痕、留痕跨行存活）。回执 data＝null（信封即回执）。 */
+export function fetchDeleteAiplatformModelTier(tierKey: string) {
+  return request<null>({ url: `/aiplatform/model-tiers/${tierKey}`, method: 'delete' });
+}
+
+/** GET /aiplatform/model-tiers/{tierKey}/traces——档位变更留痕（operatedAt 倒序＝最近先；前后全量值快照；append-only 跨行存活——行删除后留痕仍可读，未知键空清单 200 非 404）。 */
+export function fetchGetAiplatformModelTierTraces(tierKey: string) {
+  return request<Api.Aiplatform.ModelTierTrace[]>({ url: `/aiplatform/model-tiers/${tierKey}/traces`, method: 'get' });
 }
 
 /* ---- 付款核验域（#89 A 批 T2，5 端点）：嵌订单抽屉「付款核验」签（无独立页——付款域

@@ -176,6 +176,7 @@ const routeMap: RouteMap = {
   "aiplatform_material": "/aiplatform/material",
   "aiplatform_model": "/aiplatform/model",
   "aiplatform_model_provider": "/aiplatform/model/provider",
+  "aiplatform_model_tier": "/aiplatform/model/tier",
   "aiplatform_order": "/aiplatform/order",
   "aiplatform_price": "/aiplatform/price",
   "aiplatform_price_entry": "/aiplatform/price/entry",

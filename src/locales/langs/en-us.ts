@@ -261,7 +261,8 @@ const local: App.I18n.Schema = {
     aiplatform_agent_config: 'Agent Config',
     aiplatform_contract: 'Contracts',
     aiplatform_model: 'Models',
-    aiplatform_model_provider: 'Model Providers'
+    aiplatform_model_provider: 'Model Providers',
+    aiplatform_model_tier: 'Model Tiers'
   },
   page: {
     login: {
@@ -1709,6 +1710,65 @@ const local: App.I18n.Schema = {
           create: 'Provider created',
           update: 'Provider saved',
           delete: 'Provider deleted'
+        }
+      },
+      modelTier: {
+        title: 'Model Tiers',
+        tierKey: 'Tier Key',
+        providerKey: 'Provider',
+        modelName: 'Model Name',
+        displayName: 'Display Name',
+        displayNameFallback: 'No display name; falls back to tier key',
+        enabled: 'Status',
+        enabledOn: 'Enabled',
+        enabledOff: 'Disabled',
+        lastWrite: 'Last Write',
+        more: 'Actions',
+        edit: 'Edit',
+        remove: 'Delete',
+        traces: 'Traces',
+        tracesDrawer: {
+          title: 'Model Tier Traces',
+          empty: 'No traces yet',
+          nullValue: '(none)',
+          createTag: 'Created',
+          deleteTag: 'Deleted',
+          rollback: 'Rollback',
+          rollbackTip: 'Opens a prefilled form with pre-change values: edit if the row exists, recreate if deleted; submitting creates a new change',
+          field: {
+            providerKey: 'Provider',
+            modelName: 'Model Name',
+            displayName: 'Display Name',
+            enabled: 'Enabled'
+          }
+        },
+        create: 'Create Tier',
+        confirm: {
+          delete: 'Delete Tier',
+          deleteTip: 'Tier {tierKey} will be deleted (traces survive); rejection occurs while referenced by agent configs — rebind or clear bindings first. Disable instead for temporary offline use.'
+        },
+        form: {
+          createTitle: 'Create Tier',
+          updateTitle: 'Edit Tier',
+          createConfirm: 'Create',
+          updateConfirm: 'Save',
+          tierKey: 'Tier Key',
+          tierKeyPlaceholder: 'Required, short operator name, e.g. flash / pro',
+          providerKey: 'Provider Key',
+          providerKeyPlaceholder: 'Required, e.g. volcengine (create provider first)',
+          providerKeyTip: 'Create the provider before its tiers; changing provider re-points every binding automatically.',
+          modelName: 'Model Name',
+          modelNamePlaceholder: 'Required, provider Model ID, e.g. doubao-seed-1-6-250615',
+          displayName: 'Display Name',
+          displayNamePlaceholder: 'Optional; blank = clear and fall back to tier key',
+          displayNameTip: 'Blank clears the value (not keep current); upgrade model versions without changing tier key or bindings.',
+          enabled: 'Enabled',
+          disableTip: 'Disabled tiers cannot be newly bound; existing references remain. Disable rather than delete for temporary offline use.'
+        },
+        success: {
+          create: 'Tier created',
+          update: 'Tier saved',
+          delete: 'Tier deleted'
         }
       }
     }

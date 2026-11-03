@@ -1,5 +1,5 @@
 /**
- * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，#88 扩模型供应商域，#89 扩付款核验域，共用 seam）——page.route mock + 断言汇总。
+ * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，#88 扩模型供应商域，#89 扩付款核验域，#90 扩模型档位域，共用 seam）——page.route mock + 断言汇总。
  *
  * mock 派生自 admin :8081 `/v3/api-docs`（fixtures 见各域 support/*-fixtures.mjs）；
  * 错误信封按 AiplatformUpstreamErrorAdvice 形状：HTTP 状态照抄 provider、
@@ -55,8 +55,8 @@ export async function waitForMessage(page, predicate, timeoutMs = 10000) {
  * 安装 /proxy-default/** 全量 mock（auth / menus.my / aiplatform 各域）。
  *
  * @param page playwright page
- * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract?, modelProvider?, payment? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
- * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean, failNextProviderDelete: boolean, failNextRemotePull: boolean, failNextTierCreate: boolean, failNextPaymentNodes: boolean, failNextPaymentVerify: boolean}}}
+ * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract?, modelProvider?, modelTier?, payment? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
+ * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean, failNextProviderDelete: boolean, failNextRemotePull: boolean, failNextTierCreate: boolean, failNextTierDelete: boolean, delayNextTierList: boolean, failNextPaymentNodes: boolean, failNextPaymentVerify: boolean}}}
  *          calls=拦截到的请求流水（断言查询参数用）；state.failNext*＝下一次对应写抛业务错误信封
  *          （quote/workspaceWrite/reprice 抛 409，material 抛 400/404，skill 按动作族抛 502/400/409/409/400，
  *          skillDraftPromote 抛 409 SKL_016、skillDraftReject 抛 400 SKL_018，
@@ -65,6 +65,7 @@ export async function waitForMessage(page, predicate, timeoutMs = 10000) {
  *          contractWrite 抛 409 ORD_027 双签门禁竞态——advance 末边可观测门控的兜底透传靶；
  *          providerDelete 抛 409 PRJ_072 被档位引用、remotePull 抛 502 PRJ_077 上游不可用、
  *          tierCreate 抛 409 PRJ_068 撞名——B 批 T1 透传 toast 断言靶；
+ *          tierDelete 抛 409 PRJ_073 被绑定引用——B 批 T2 删除竞态透传靶；
  *          paymentNodes 抛 409 ORD_044 重录窗口、paymentVerify 抛 400 ORD_041 录入无效——
  *          A 批 T2 写失败代表样 409/400 透传 toast 断言靶）
  */
@@ -89,6 +90,8 @@ export async function installAiplatformMocks(page, fixtures) {
     failNextProviderDelete: false,
     failNextRemotePull: false,
     failNextTierCreate: false,
+    failNextTierDelete: false,
+    delayNextTierList: false,
     failNextPaymentNodes: false,
     failNextPaymentVerify: false
   };
@@ -879,9 +882,38 @@ export async function installAiplatformMocks(page, fixtures) {
     return { receipt };
   }
 
-  /** 档位入库（对照 drawer 内嵌写口）：撞名 PRJ_068 / 通道不存在 PRJ_071 / 模型名缺失 PRJ_070；成功＝档位行＋目录对照双端同步。 */
+  /* ---- 模型档位域变异（#90；与供应商页共用 POST 创建写口——目标行集按测试域选择：
+   * 供应商页＝modelProvider.TIER_ROWS（对照目录同步），档位页＝modelTier.TIER_ROWS（页面回读）；
+   * 档位留痕 unshift 时间倒序，append-only 跨行存活）---- */
+
+  const tierStore = fixtures.modelTier ?? fixtures.modelProvider;
+  const tierWriteOperator = fixtures.modelTier?.TIER_WRITE_OPERATOR ?? fixtures.modelProvider?.PROVIDER_WRITE_OPERATOR;
+  const tierWriteAt = fixtures.modelTier?.TIER_WRITE_AT ?? fixtures.modelProvider?.PROVIDER_WRITE_AT;
+
+  /** 档位留痕 unshift（操作者 E2E Mock 模拟 X-User 头；创建 old 全 null、删除 new 全 null）。 */
+  function pushTierTrace(tierKey, oldPart, newPart) {
+    if (!fixtures.modelTier) return;
+    const traces = (fixtures.modelTier.TIER_TRACES[tierKey] ??= []);
+    traces.unshift({
+      id: `7402260000000002${String(traces.length).padStart(3, '0')}`,
+      oldProviderKey: null,
+      oldModelName: null,
+      oldDisplayName: null,
+      oldEnabled: null,
+      newProviderKey: null,
+      newModelName: null,
+      newDisplayName: null,
+      newEnabled: null,
+      ...oldPart,
+      ...newPart,
+      ...tierWriteOperator,
+      operatedAt: tierWriteAt
+    });
+  }
+
+  /** 创建：撞名 PRJ_068 / 通道不存在 PRJ_071 / 模型名缺失 PRJ_070；创建即落痕、清单按键序。 */
   function applyTierCreate(command) {
-    if (fixtures.modelProvider.TIER_ROWS.some(t => t.tierKey === command.tierKey)) {
+    if (tierStore.TIER_ROWS.some(t => t.tierKey === command.tierKey)) {
       return { error: prj(409, 4068, '档位语义键已存在（PRJ_068）') };
     }
     if (!fixtures.modelProvider.PROVIDER_ROWS.some(r => r.providerKey === command.providerKey)) {
@@ -896,14 +928,79 @@ export async function installAiplatformMocks(page, fixtures) {
       modelName: String(command.modelName).trim(),
       displayName: command.displayName ?? null,
       enabled: command.enabled ?? true,
-      ...fixtures.modelProvider.PROVIDER_WRITE_OPERATOR,
-      updatedAt: fixtures.modelProvider.PROVIDER_WRITE_AT
+      ...tierWriteOperator,
+      updatedAt: tierWriteAt
     };
-    fixtures.modelProvider.TIER_ROWS.push(row);
+    tierStore.TIER_ROWS.push(row);
+    tierStore.TIER_ROWS.sort((a, b) => a.tierKey.localeCompare(b.tierKey));
+    pushTierTrace(row.tierKey, {}, {
+      newProviderKey: row.providerKey,
+      newModelName: row.modelName,
+      newDisplayName: row.displayName,
+      newEnabled: row.enabled
+    });
     // 对照目录同步（trackedTierKeys 单一事实源对齐——再拉目录即见新档）
     const entry = fixtures.modelProvider.REMOTE_CATALOGS[row.providerKey]?.remoteModels.find(m => m.modelId === row.modelName);
-    if (entry) entry.trackedTierKeys.push(row.tierKey);
+    if (entry && !entry.trackedTierKeys.includes(row.tierKey)) entry.trackedTierKeys.push(row.tierKey);
     return { receipt: { ...row } };
+  }
+
+  /** 更新：providerKey/modelName/displayName 终态替换（displayName 空＝清空）；enabled 缺省保持；无动幂等零落痕。 */
+  function applyTierUpdate(row, command) {
+    if (!fixtures.modelProvider.PROVIDER_ROWS.some(r => r.providerKey === command.providerKey)) {
+      return { error: prj(400, 4071, '所属通道不存在，先建通道再挂档位（PRJ_071）') };
+    }
+    if (!command.modelName || String(command.modelName).trim() === '') {
+      return { error: prj(400, 4070, '实际模型名不能为空（PRJ_070）') };
+    }
+    const oldFacets = {
+      providerKey: row.providerKey,
+      modelName: row.modelName,
+      displayName: row.displayName,
+      enabled: row.enabled
+    };
+    const displayName = String(command.displayName ?? '').trim();
+    const next = {
+      providerKey: command.providerKey,
+      modelName: String(command.modelName).trim(),
+      displayName: displayName === '' ? null : displayName,
+      enabled: command.enabled == null ? row.enabled : command.enabled
+    };
+    if (JSON.stringify(oldFacets) !== JSON.stringify(next)) {
+      Object.assign(row, next, tierWriteOperator, { updatedAt: tierWriteAt });
+      pushTierTrace(
+        row.tierKey,
+        {
+          oldProviderKey: oldFacets.providerKey,
+          oldModelName: oldFacets.modelName,
+          oldDisplayName: oldFacets.displayName,
+          oldEnabled: oldFacets.enabled
+        },
+        {
+          newProviderKey: next.providerKey,
+          newModelName: next.modelName,
+          newDisplayName: next.displayName,
+          newEnabled: next.enabled
+        }
+      );
+    }
+    return { receipt: { ...row } };
+  }
+
+  /** 删除：被绑定引用 409 PRJ_073；删成落删除痕（new 全 null）、留痕跨行存活。 */
+  function applyTierDelete(row) {
+    if (fixtures.modelTier.BOUND_TIER_KEYS.includes(row.tierKey)) {
+      return { error: prj(409, 4073, '档位仍被智能体配置绑定，先改绑或清空绑定（PRJ_073）') };
+    }
+    const idx = tierStore.TIER_ROWS.indexOf(row);
+    if (idx >= 0) tierStore.TIER_ROWS.splice(idx, 1);
+    pushTierTrace(row.tierKey, {
+      oldProviderKey: row.providerKey,
+      oldModelName: row.modelName,
+      oldDisplayName: row.displayName,
+      oldEnabled: row.enabled
+    }, {});
+    return { receipt: null };
   }
 
   await page.route('**/proxy-default/**', async route => {
@@ -973,7 +1070,10 @@ export async function installAiplatformMocks(page, fixtures) {
             { code: 'admin:aiplatform:model-provider:create', name: 'AI 平台 / 模型供应商创建' },
             { code: 'admin:aiplatform:model-provider:update', name: 'AI 平台 / 模型供应商维护' },
             { code: 'admin:aiplatform:model-provider:delete', name: 'AI 平台 / 模型供应商删除' },
+            { code: 'admin:aiplatform:model-tier:read', name: 'AI 平台 / 模型档位查看' },
             { code: 'admin:aiplatform:model-tier:create', name: 'AI 平台 / 模型档位创建' },
+            { code: 'admin:aiplatform:model-tier:update', name: 'AI 平台 / 模型档位维护' },
+            { code: 'admin:aiplatform:model-tier:delete', name: 'AI 平台 / 模型档位删除' },
             { code: 'admin:aiplatform:payment:read', name: 'AI 平台 / 付款核验查看' },
             { code: 'admin:aiplatform:payment:update-plan', name: 'AI 平台 / 付款节点录入' },
             { code: 'admin:aiplatform:payment:verify', name: 'AI 平台 / 付款到账核验' },
@@ -1173,6 +1273,21 @@ export async function installAiplatformMocks(page, fixtures) {
                   i18nKey: 'route.aiplatform_model_provider',
                   parentId: '82',
                   sortOrder: 12,
+                  menuType: 2,
+                  status: 1
+                },
+                {
+                  // V23 种子 280：三段键 aiplatform_model_tier、path 正典 /aiplatform/model/tier
+                  id: '280',
+                  menuName: '模型档位',
+                  routeName: 'aiplatform_model_tier',
+                  routePath: '/aiplatform/model/tier',
+                  component: 'view.aiplatform_model_tier',
+                  icon: 'carbon:layers',
+                  iconType: 1,
+                  i18nKey: 'route.aiplatform_model_tier',
+                  parentId: '82',
+                  sortOrder: 13,
                   menuType: 2,
                   status: 1
                 }
@@ -1641,6 +1756,57 @@ export async function installAiplatformMocks(page, fixtures) {
         const result = applyTierCreate(JSON.parse(route.request().postData() ?? '{}'));
         if (result.error) return prjErr(...result.error);
         return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+    }
+
+    // ---- 模型档位域（#90；6 端点——tierKey 路径段寻址，清单无分页；守卫 PRJ_066/070/071/073
+    // 自然裁决＋failNextTierDelete 注入；留痕跨行存活：行删后仍可读，未知键空清单 200）----
+    if (fixtures.modelTier) {
+      const prjErr = (status, code, message) =>
+        json(route, status, { code, message, data: null, requestId: 'e2e-mock', errors: null });
+      const findTier = key => fixtures.modelTier.TIER_ROWS.find(r => r.tierKey === key);
+      if (path === '/aiplatform/model-tiers' && method === 'GET') {
+        // 删除后清单/留痕并发回读的竞态靶：延迟下一次清单，让删除痕先可达（#90 review 回归）
+        if (state.delayNextTierList) {
+          state.delayNextTierList = false;
+          await sleep(1000);
+        }
+        return json(route, 200, {
+          code: 200,
+          message: 'ok',
+          data: fixtures.modelTier.TIER_ROWS.map(r => ({ ...r })),
+          requestId: 'e2e-mock',
+          errors: null
+        });
+      }
+      const tierTracesMatch = path.match(/^\/aiplatform\/model-tiers\/([^/]+)\/traces$/);
+      if (tierTracesMatch && method === 'GET') {
+        const traces = fixtures.modelTier.TIER_TRACES[tierTracesMatch[1]] ?? [];
+        return json(route, 200, { code: 200, message: 'ok', data: traces.map(t => ({ ...t })), requestId: 'e2e-mock', errors: null });
+      }
+      const tierMatch = path.match(/^\/aiplatform\/model-tiers\/([^/]+)$/);
+      if (tierMatch && method === 'PUT') {
+        const row = findTier(tierMatch[1]);
+        if (!row) return prjErr(404, 4066, '档位不存在（PRJ_066）');
+        const result = applyTierUpdate(row, JSON.parse(route.request().postData() ?? '{}'));
+        if (result.error) return prjErr(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+      if (tierMatch && method === 'DELETE') {
+        const row = findTier(tierMatch[1]);
+        if (!row) return prjErr(404, 4066, '档位不存在（PRJ_066）');
+        if (state.failNextTierDelete) {
+          state.failNextTierDelete = false;
+          return prjErr(409, 4073, '档位仍被智能体配置绑定，先改绑或清空绑定（PRJ_073）');
+        }
+        const result = applyTierDelete(row);
+        if (result.error) return prjErr(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: null, requestId: 'e2e-mock', errors: null });
+      }
+      if (tierMatch && method === 'GET') {
+        const row = findTier(tierMatch[1]);
+        if (!row) return prjErr(404, 4066, '档位不存在（PRJ_066）');
+        return json(route, 200, { code: 200, message: 'ok', data: { ...row }, requestId: 'e2e-mock', errors: null });
       }
     }
 

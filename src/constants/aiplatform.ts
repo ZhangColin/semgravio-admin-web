@@ -405,8 +405,18 @@ export const modelProviderWriteAuth: Record<ModelProviderAction, string> = {
   delete: 'admin:aiplatform:model-provider:delete'
 };
 
+/* ---- 模型档位域（#90 B 批 T2——档位 CRUD/停用态/留痕回滚；读写分权、每写一码）---- */
+
+/** 档位三写动作（权限码 Record 的键约束；读面三端点共用 read 一码不逐项门控）。 */
+export type ModelTierAction = 'create' | 'update' | 'delete';
+
 /**
- * 档位入库跨域权限码（对照 drawer 内嵌「入库」——复用档位创建写口 POST /model-tiers，
- * 权限在彼处自然拦截故按档位域码门控；供应商域自身四码不含它）。
+ * 档位三写权限码（hasAuth 门控——创建钮/编辑·删除下拉项/留痕回滚钮（回滚＝打开预填表单，
+ * 行在走 PUT/行已删走创建重建，两路均 update 或 create 码——按目标形态分别门控））。
+ * 供应商页对照 drawer 内嵌「入库」复用 create 键（跨域写口自然拦截）。
  */
-export const MODEL_TIER_CREATE_AUTH = 'admin:aiplatform:model-tier:create';
+export const modelTierWriteAuth: Record<ModelTierAction, string> = {
+  create: 'admin:aiplatform:model-tier:create',
+  update: 'admin:aiplatform:model-tier:update',
+  delete: 'admin:aiplatform:model-tier:delete'
+};

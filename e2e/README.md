@@ -1,4 +1,4 @@
-# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域）
+# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域、#90 扩模型档位域）
 
 headless Chrome（`playwright-core` 系统 channel，**免下载浏览器**）+ `page.route` 全量 mock。
 mock fixtures 的字段形状**派生自 admin :8081 `/v3/api-docs`**（各域 `support/*-fixtures.mjs` 头注释标明
@@ -114,6 +114,18 @@ e2e/
                            （建议入库两态/已入库两档/staleTiers 两行）＋最小档位集 TIER_ROWS；
                            CRUD/入库变异由 harness applyProvider*/applyTierCreate 就地改——
                            **apiKey 即入即掩（maskApiKey 单点），fixture 永不存明文**（铁律））
+  model-tier.e2e.mjs      模型档位域验收流（#90 B 批 T2：清单无分页全量直灌（tierKey/modelName
+                           mono＋displayName null 回落灰显＋停用档＋种子行 operator）/创建 modal
+                           （先建通道再挂档位 400 PRJ_071 透传留窗＋成功 POST 四肢全量）/更新
+                           三肢终态替换＋displayName 空＝清空＋enabled 显式传/删除 $dialog（被
+                           绑定 409 PRJ_073 自然＋竞态注入）/留痕 drawer 时间倒序＋创建/删除痕/
+                           per-trace 回滚两路（行在＝编辑预填旧值、PUT body＝old 四件；行已删＝
+                           创建预填重建、POST body＝删除痕 old 四件＋tierKey；跨行存活零特判＋
+                           清单延迟竞态注入，删除成功同步移除本地行确保回滚必走创建））
+  model-tier-fixtures.mjs 模型档位 fixtures（AiplatformModelTier/TraceResponse 形状——四行含
+                           停用档/null displayName/种子 operator/被绑定档，留痕按 tierKey 索引
+                           时间倒序；harness applyTier* 就地变异行·留痕，BOUND_TIER_KEYS 提供
+                           删除引用守卫自然裁决，failNextTierDelete 注入竞态）
   payment.e2e.mjs         付款核验域验收流（#89 A 批 T2：订单抽屉两签——「付款核验」签切签挂载
                            即加载/无计划 404 ORD_036 面板缺席＋toast 透传/计划详情三段全量（概览
                            contractNo mono·总额·累计/节点表五态 statusName 直读＋附言码 mono＋

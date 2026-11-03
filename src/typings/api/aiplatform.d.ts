@@ -1380,7 +1380,10 @@ declare namespace Api {
 
     /* ---- 模型供应商域（#88 B 批 T1——model-providers 7 端点：清单/单行读＋CRUD 三写＋远端
      * 清单拉取＋留痕；providerKey＝协议路由前缀路径段寻址（无 id），清单按键序无分页。
-     * apiKey 全链只写不读明文（铁律）：读面/留痕一律 apiKeyMasked 尾 4 位（null＝未配置）。---- */
+     * apiKey 全链只写不读明文（铁律）：读面/留痕一律 apiKeyMasked 尾 4 位（null＝未配置）。
+     * 模型档位域（#90 B 批 T2——model-tiers 6 端点）：tierKey＝语义键路径段寻址（绑定引用腿），
+     * 清单按语义键序无分页；删除被绑定引用拒 409 PRJ_073；单行 GET 与清单行同形且清单即
+     * 全量故前端不另设调用面（供应商页同口径）。---- */
 
     /**
      * 通道行（GET 清单/单行、POST 创建、PUT 更新回执同形）——apiKeyMasked 尾 4 位掩码
@@ -1474,22 +1477,29 @@ declare namespace Api {
       staleTiers: StaleTier[];
     }
 
-    /** 档位行（POST /model-tiers 回执；对照 drawer 入库复用此写口——T2 档位页全量消费）。displayName null＝回落 tierKey 展示。 */
+    /**
+     * 档位行（GET 清单、POST 创建、PUT 更新回执同形；对照 drawer 入库复用创建写口）。
+     * displayName null＝回落 tierKey 展示；enabled 原生 boolean（行恒在场）。
+     */
     interface ModelTier {
+      /** 档位语义键（引用腿——绑定面绑定的值；寻址键路径段直传） */
       tierKey: string;
       providerKey: string;
       modelName: string;
+      /** 运营显示名（null＝回落 tierKey 展示） */
       displayName: string | null;
+      /** 启用态（停用＝不可作新绑定 PRJ_075、既有绑定装配报错 PRJ_061——临时下线用停用不删行） */
       enabled: boolean;
+      /** 最近写者（null＝种子/迁移写入） */
       operatorId: string | null;
       operatorName: string | null;
       updatedAt: string;
     }
 
     /**
-     * POST /model-tiers body（入库窄命令：providerKey＝本通道、modelName＝所选条目 modelId
-     * 预填；tierKey 人工命名）。守卫 provider 裁决：撞名 409 PRJ_068 / 通道不存在 400 PRJ_071 /
-     * 模型名缺失 400 PRJ_070。
+     * POST /model-tiers body——创建即可被绑定（先建通道再挂档位）；displayName 可空＝回落
+     * 语义键；enabled 装箱缺省＝provider true。守卫 provider 裁决：撞名 409 PRJ_068 /
+     * 通道不存在 400 PRJ_071 / 模型名缺失 400 PRJ_070。
      */
     interface ModelTierCreateCommand {
       tierKey: string;
@@ -1497,6 +1507,46 @@ declare namespace Api {
       modelName: string;
       displayName: string | null;
       enabled: boolean | null;
+    }
+
+    /**
+     * PUT /model-tiers/{tierKey} body——PUT 全量语义＋enabled 缺省保持特例：providerKey/
+     * modelName/displayName **终态替换**（displayName null/空白＝清显示名回落语义键——与通道
+     * apiKey「null＝保持」有意不同，清空无副作用）；enabled null＝保持现值（停用档换指向
+     * 不被意外复启，显式 true/false 才翻转）。升模型版本/换供应商＝改 providerKey/modelName
+     * 指向而全部绑定引用自动跟上（语义键与模型版本解耦）。档位不存在 404 PRJ_066。
+     */
+    interface ModelTierUpdateCommand {
+      providerKey: string;
+      modelName: string;
+      displayName: string | null;
+      enabled: boolean | null;
+    }
+
+    /**
+     * 档位变更留痕行（GET /{tierKey}/traces，服务端 operatedAt 倒序＝最近先）：一次实际变更
+     * 的前后全量值快照；创建痕 old 四件全 null、删除痕 new 四件全 null、newDisplayName null＝
+     * 本次清空回落语义键；append-only 跨行存活——留痕读面不要求行存在（未知键空清单 200 非
+     * 404）。回滚＝把某痕旧值快照写回（行在＝PUT、行已删＝按旧值重建——皆一次新变更留新痕，
+     * 无专用回滚端点；前端形态＝打开预填表单非直接 PUT）。
+     */
+    interface ModelTierTrace {
+      /** TSID 十进制串 */
+      id: string;
+      oldProviderKey: string | null;
+      oldModelName: string | null;
+      oldDisplayName: string | null;
+      /** Boolean 装箱（创建痕 null） */
+      oldEnabled: boolean | null;
+      newProviderKey: string | null;
+      newModelName: string | null;
+      /** null＝本次清空回落语义键或删除痕 */
+      newDisplayName: string | null;
+      /** Boolean 装箱（删除痕 null） */
+      newEnabled: boolean | null;
+      operatorId: string;
+      operatorName: string;
+      operatedAt: string;
     }
   }
 }

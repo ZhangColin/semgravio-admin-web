@@ -1927,6 +1927,66 @@ declare namespace App {
               delete: string;
             };
           };
+          /** 模型档位域（#90 B 批 T2——档位 CRUD/停用态/留痕＋per-trace 回滚）。 */
+          modelTier: {
+            title: string;
+            tierKey: string;
+            providerKey: string;
+            modelName: string;
+            displayName: string;
+            displayNameFallback: string;
+            enabled: string;
+            enabledOn: string;
+            enabledOff: string;
+            lastWrite: string;
+            more: string;
+            edit: string;
+            remove: string;
+            traces: string;
+            tracesDrawer: {
+              title: string;
+              empty: string;
+              nullValue: string;
+              createTag: string;
+              deleteTag: string;
+              rollback: string;
+              rollbackTip: string;
+              field: {
+                providerKey: string;
+                modelName: string;
+                displayName: string;
+                enabled: string;
+              };
+            };
+            create: string;
+            confirm: {
+              delete: string;
+              deleteTip: string;
+            };
+            form: {
+              createTitle: string;
+              updateTitle: string;
+              createConfirm: string;
+              updateConfirm: string;
+              tierKey: string;
+              tierKeyPlaceholder: string;
+              providerKey: string;
+              providerKeyPlaceholder: string;
+              providerKeyTip: string;
+              modelName: string;
+              modelNamePlaceholder: string;
+              displayName: string;
+              displayNamePlaceholder: string;
+              displayNameTip: string;
+              enabled: string;
+              disableTip: string;
+            };
+            success: {
+              create: string;
+              update: string;
+              delete: string;
+            };
+          };
         };
       };
       form: {

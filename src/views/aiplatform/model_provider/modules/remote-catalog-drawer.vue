@@ -17,7 +17,7 @@
 import { computed, ref, watch } from 'vue';
 import { NAlert, NButton, NCheckbox, NInput, NSpin, NTag } from 'naive-ui';
 import type { DataTableColumn } from 'naive-ui';
-import { MODEL_TIER_CREATE_AUTH } from '@/constants/aiplatform';
+import { modelTierWriteAuth } from '@/constants/aiplatform';
 import { fetchCreateAiplatformModelTier, fetchPullAiplatformRemoteModels } from '@/service/api';
 import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
@@ -237,7 +237,7 @@ const entryColumns = computed<DataTableColumn<Api.Aiplatform.RemoteModelEntry>[]
       <template #footer>
         <!-- 入库＝drawer 内嵌轻量表单收口（跨域码门控；勾选全填语义键才放开）——不跨页跳转 -->
         <NButton
-          v-if="hasAuth(MODEL_TIER_CREATE_AUTH) && catalog && !pullFailed && !loading"
+          v-if="hasAuth(modelTierWriteAuth.create) && catalog && !pullFailed && !loading"
           type="primary"
           size="small"
           :disabled="!canIngest"

@@ -257,7 +257,8 @@ const local: App.I18n.Schema = {
     aiplatform_agent_config: '智能体配置',
     aiplatform_contract: '合同管理',
     aiplatform_model: '模型',
-    aiplatform_model_provider: '模型供应商'
+    aiplatform_model_provider: '模型供应商',
+    aiplatform_model_tier: '模型档位'
   },
   page: {
     login: {
@@ -1707,6 +1708,65 @@ const local: App.I18n.Schema = {
           create: '通道已创建',
           update: '通道已保存',
           delete: '通道已删除'
+        }
+      },
+      modelTier: {
+        title: '模型档位',
+        tierKey: '语义键',
+        providerKey: '所属通道',
+        modelName: '实际模型名',
+        displayName: '显示名',
+        displayNameFallback: '未设显示名，回落语义键展示',
+        enabled: '状态',
+        enabledOn: '启用',
+        enabledOff: '停用',
+        lastWrite: '最近写者',
+        more: '操作',
+        edit: '编辑',
+        remove: '删除',
+        traces: '留痕',
+        tracesDrawer: {
+          title: '档位变更留痕',
+          empty: '暂无变更留痕',
+          nullValue: '（无）',
+          createTag: '创建',
+          deleteTag: '删除',
+          rollback: '回滚',
+          rollbackTip: '按该次变更前旧值打开预填表单：行在＝编辑保存，行已删＝按旧值重建；提交即一次新变更',
+          field: {
+            providerKey: '所属通道',
+            modelName: '实际模型名',
+            displayName: '显示名',
+            enabled: '启用态'
+          }
+        },
+        create: '创建档位',
+        confirm: {
+          delete: '删除档位',
+          deleteTip: '档位 {tierKey} 将被删除（留痕跨行存活）；仍被智能体配置绑定时将被拒绝，先改绑或清空绑定。临时下线请改用停用。'
+        },
+        form: {
+          createTitle: '创建档位',
+          updateTitle: '编辑档位',
+          createConfirm: '确认创建',
+          updateConfirm: '确认保存',
+          tierKey: '语义键',
+          tierKeyPlaceholder: '必填，运营短名，如 flash / pro',
+          providerKey: '所属通道',
+          providerKeyPlaceholder: '必填，如 volcengine（先建通道再挂档位）',
+          providerKeyTip: '先建通道再挂档位；换供应商只改此处指向，全部绑定自动跟上。',
+          modelName: '实际模型名',
+          modelNamePlaceholder: '必填，通道侧 Model ID，如 doubao-seed-1-6-250615',
+          displayName: '显示名',
+          displayNamePlaceholder: '选填；留空＝清空显示名，回落语义键展示',
+          displayNameTip: '留空即清空（非保持现值）；升模型版本只改实际模型名，语义键与绑定不动。',
+          enabled: '启用档位',
+          disableTip: '停用档不可作新绑定，既有引用保留；临时下线用停用不删行。'
+        },
+        success: {
+          create: '档位已创建',
+          update: '档位已保存',
+          delete: '档位已删除'
         }
       }
     }
