@@ -1,4 +1,4 @@
-# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域）
+# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域）
 
 headless Chrome（`playwright-core` 系统 channel，**免下载浏览器**）+ `page.route` 全量 mock。
 mock fixtures 的字段形状**派生自 admin :8081 `/v3/api-docs`**（各域 `support/*-fixtures.mjs` 头注释标明
@@ -96,6 +96,24 @@ e2e/
                            六态 12 行（含撤回/作废同态不同动作对行）＋动作六类跨行全覆盖＋
                            Long id 恒 string；六写与创建变异由 harness applyContract* 行·详情
                            双端就地改（守卫族自然裁决：ORD_020/021/022/024/025/027/028/031））
+  model-provider.e2e.mjs  模型供应商域验收流（#88 B 批 T1：清单无分页全量直灌（掩码/未配置
+                           「—」两态＋enabled tag＋种子行 operator '- '）/创建 modal（apiKey 明文
+                           ＝写面唯一明文口；POST 命令体验形状不锚原文——铁律钉子）/更新 modal
+                           （baseUrl 终态替换预填＋apiKey 留空＝保持＋enabled 预填显式传）/
+                           换 key 掩码变更回读/删除 $dialog（被引用 409 PRJ_072 自然＋竞态注入
+                           双路透传）/远端清单拉取（行动作 POST 真拉重开再拉＋502 PRJ_077 错误
+                           态不静默＋key 空 400 PRJ_076）/对照 drawer（建议入库 tag＋status
+                           如实转述 Shutdown/活跃＋已入库键直读＋staleTiers 过时区块）/入库＝
+                           drawer 内嵌轻量表单（勾选＋行内语义键→POST /model-tiers providerKey
+                           ＝本通道 modelName 预填＋409 PRJ_068 留建议态）/留痕 drawer（时间
+                           倒序＋掩码对＋创建痕标注＋回滚预填旧值 apiKey 恒空）＋全链明文
+                           负向钉子（读面/留痕））
+  model-provider-fixtures.mjs 模型供应商 fixtures（AiplatformModelProvider/Trace/RemoteCatalog/
+                           ModelTierResponse 形状——通道三行掩码/未配置·启停·种子 operator 态
+                           矩阵＋留痕按 providerKey 索引（创建痕 old 全 null）＋对照目录样本
+                           （建议入库两态/已入库两档/staleTiers 两行）＋最小档位集 TIER_ROWS；
+                           CRUD/入库变异由 harness applyProvider*/applyTierCreate 就地改——
+                           **apiKey 即入即掩（maskApiKey 单点），fixture 永不存明文**（铁律））
 ```
 
 技能域 fixtures 一并承载指派态（`SKILL_ASSIGNMENTS` 三槽初始指派——PUT 由 harness 就地整包替换，

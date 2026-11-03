@@ -255,7 +255,9 @@ const local: App.I18n.Schema = {
     aiplatform_skill_draft: '草稿审核',
     aiplatform_agent: '智能体',
     aiplatform_agent_config: '智能体配置',
-    aiplatform_contract: '合同管理'
+    aiplatform_contract: '合同管理',
+    aiplatform_model: '模型',
+    aiplatform_model_provider: '模型供应商'
   },
   page: {
     login: {
@@ -1544,6 +1546,81 @@ const local: App.I18n.Schema = {
           void: '合同已作废',
           sign: '签署位已落定',
           record: '草稿已重录'
+        }
+      },
+      modelProvider: {
+        title: '模型供应商',
+        providerKey: '通道键',
+        baseUrl: '接入地址',
+        apiKeyMasked: 'apiKey（掩码）',
+        enabled: '状态',
+        enabledOn: '启用',
+        enabledOff: '停用',
+        lastWrite: '最近写者',
+        more: '操作',
+        edit: '编辑',
+        remove: '删除',
+        traces: '留痕',
+        tracesDrawer: {
+          title: '通道变更留痕',
+          empty: '暂无变更留痕',
+          notConfigured: '未配置',
+          createTag: '创建',
+          deleteTag: '删除',
+          rollback: '回滚',
+          rollbackTip: '按该次变更前旧值打开编辑表单——apiKey 留痕只有掩码，须重输全量新值',
+          field: {
+            baseUrl: '接入地址',
+            apiKey: 'apiKey（掩码）',
+            enabled: '启用态'
+          }
+        },
+        create: '创建通道',
+        pull: '拉取清单',
+        catalogDrawer: {
+          title: '远端模型清单对照',
+          providerLine: '通道 {providerKey}',
+          pulledAt: '拉取时刻',
+          modelId: '模型 ID',
+          name: '展示名',
+          status: '上游状态',
+          statusActive: '活跃',
+          domain: '领域',
+          tracked: '库内档位',
+          suggestTag: '建议入库',
+          ingestColumn: '入库（勾选＋语义键）',
+          tierKeyPlaceholder: '语义键，如 doubao-flagship',
+          ingest: '入库所选（{count}）',
+          ingestSuccess: '已入库 {count} 个档位',
+          staleTitle: '已过时档位（库内指向远端已无）',
+          staleHint: '升模型版本或改档位指向后自然消除',
+          errorState: '拉取失败——上游错误已透传提示，可重试',
+          retry: '重新拉取',
+          empty: '远端无模型条目'
+        },
+        confirm: {
+          delete: '删除通道',
+          deleteTip: '通道 {providerKey} 将被删除（留痕跨行存活）；仍被档位引用时将被拒绝，先删除或改挂其下档位。'
+        },
+        form: {
+          createTitle: '创建通道',
+          updateTitle: '编辑通道',
+          createConfirm: '确认创建',
+          updateConfirm: '确认保存',
+          providerKey: '通道键',
+          providerKeyPlaceholder: '协议路由前缀，如 volcengine',
+          baseUrl: '接入地址',
+          baseUrlPlaceholder: '必填，如 https://ark.cn-beijing.volces.com/api/v3',
+          apiKey: 'apiKey',
+          apiKeyCreatePlaceholder: '选填全量值；留空＝暂不配置',
+          apiKeyUpdatePlaceholder: '留空＝保持现值；填全量新值＝换 key',
+          enabled: '启用通道',
+          effectTip: '换 key / 换地址即时生效，无需重启；读面只出掩码（尾 4 位）。'
+        },
+        success: {
+          create: '通道已创建',
+          update: '通道已保存',
+          delete: '通道已删除'
         }
       }
     }

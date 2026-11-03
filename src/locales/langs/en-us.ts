@@ -259,7 +259,9 @@ const local: App.I18n.Schema = {
     aiplatform_skill_draft: 'Draft Review',
     aiplatform_agent: 'Agent',
     aiplatform_agent_config: 'Agent Config',
-    aiplatform_contract: 'Contracts'
+    aiplatform_contract: 'Contracts',
+    aiplatform_model: 'Models',
+    aiplatform_model_provider: 'Model Providers'
   },
   page: {
     login: {
@@ -1546,6 +1548,81 @@ const local: App.I18n.Schema = {
           void: 'Contract voided',
           sign: 'Signature recorded',
           record: 'Draft re-recorded'
+        }
+      },
+      modelProvider: {
+        title: 'Model Providers',
+        providerKey: 'Provider Key',
+        baseUrl: 'Base URL',
+        apiKeyMasked: 'apiKey (masked)',
+        enabled: 'Status',
+        enabledOn: 'Enabled',
+        enabledOff: 'Disabled',
+        lastWrite: 'Last Write',
+        more: 'Actions',
+        edit: 'Edit',
+        remove: 'Delete',
+        traces: 'Traces',
+        tracesDrawer: {
+          title: 'Provider Traces',
+          empty: 'No traces yet',
+          notConfigured: 'Not configured',
+          createTag: 'Created',
+          deleteTag: 'Deleted',
+          rollback: 'Rollback',
+          rollbackTip: 'Opens the edit form prefilled with pre-change values — apiKey traces are masked only, re-enter the full value',
+          field: {
+            baseUrl: 'Base URL',
+            apiKey: 'apiKey (masked)',
+            enabled: 'Enabled'
+          }
+        },
+        create: 'Create Provider',
+        pull: 'Pull Remote',
+        catalogDrawer: {
+          title: 'Remote Model Catalog',
+          providerLine: 'Provider {providerKey}',
+          pulledAt: 'Pulled at',
+          modelId: 'Model ID',
+          name: 'Name',
+          status: 'Upstream Status',
+          statusActive: 'Active',
+          domain: 'Domain',
+          tracked: 'Tracked Tiers',
+          suggestTag: 'Suggested',
+          ingestColumn: 'Ingest (select + tier key)',
+          tierKeyPlaceholder: 'Tier key, e.g. doubao-flagship',
+          ingest: 'Ingest Selected ({count})',
+          ingestSuccess: 'Ingested {count} tier(s)',
+          staleTitle: 'Stale tiers (tracked but absent upstream)',
+          staleHint: 'Resolved by upgrading or re-pointing the tier',
+          errorState: 'Pull failed — upstream error surfaced, retry available',
+          retry: 'Retry Pull',
+          empty: 'No remote models'
+        },
+        confirm: {
+          delete: 'Delete Provider',
+          deleteTip: 'Provider {providerKey} will be deleted (traces survive); rejection occurs if still referenced by tiers — delete or re-point them first.'
+        },
+        form: {
+          createTitle: 'Create Provider',
+          updateTitle: 'Edit Provider',
+          createConfirm: 'Create',
+          updateConfirm: 'Save',
+          providerKey: 'Provider Key',
+          providerKeyPlaceholder: 'Protocol route prefix, e.g. volcengine',
+          baseUrl: 'Base URL',
+          baseUrlPlaceholder: 'Required, e.g. https://ark.cn-beijing.volces.com/api/v3',
+          apiKey: 'apiKey',
+          apiKeyCreatePlaceholder: 'Optional full value; leave blank = not configured yet',
+          apiKeyUpdatePlaceholder: 'Leave blank = keep current; full new value = rotate key',
+          enabled: 'Enabled',
+          effectTip: 'Key/URL changes take effect immediately, no restart; read side shows mask (last 4) only.'
+        },
+        success: {
+          create: 'Provider created',
+          update: 'Provider saved',
+          delete: 'Provider deleted'
         }
       }
     }

@@ -28,6 +28,8 @@ declare module "@elegant-router/types" {
     "aiplatform_contract": "/aiplatform/contract";
     "aiplatform_cost": "/aiplatform/cost";
     "aiplatform_material": "/aiplatform/material";
+    "aiplatform_model": "/aiplatform/model";
+    "aiplatform_model_provider": "/aiplatform/model/provider";
     "aiplatform_order": "/aiplatform/order";
     "aiplatform_price": "/aiplatform/price";
     "aiplatform_price_entry": "/aiplatform/price/entry";
@@ -120,6 +122,7 @@ declare module "@elegant-router/types" {
     | "aiplatform_contract"
     | "aiplatform_cost"
     | "aiplatform_material"
+    | "aiplatform_model_provider"
     | "aiplatform_order"
     | "aiplatform_price_entry"
     | "aiplatform_project"

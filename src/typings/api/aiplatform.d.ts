@@ -1210,5 +1210,126 @@ declare namespace Api {
       paymentPlan: string | null;
       basis: string;
     }
+
+    /* ---- 模型供应商域（#88 B 批 T1——model-providers 7 端点：清单/单行读＋CRUD 三写＋远端
+     * 清单拉取＋留痕；providerKey＝协议路由前缀路径段寻址（无 id），清单按键序无分页。
+     * apiKey 全链只写不读明文（铁律）：读面/留痕一律 apiKeyMasked 尾 4 位（null＝未配置）。---- */
+
+    /**
+     * 通道行（GET 清单/单行、POST 创建、PUT 更新回执同形）——apiKeyMasked 尾 4 位掩码
+     * （null＝未配置——读面零明文 key）；enabled 停用＝引用该通道的装配明确报错不静默换道。
+     * 换 key/baseUrl 不重启：下一轮命令构建即生效（文案可注「即时生效」）。
+     */
+    interface ModelProvider {
+      /** 通道键名＝协议路由前缀（模型串「前缀:实际模型名」的前缀腿） */
+      providerKey: string;
+      baseUrl: string;
+      /** apiKey 掩码形（尾 4 位；null＝未配置——写面唯一明文口在创建/更新表单） */
+      apiKeyMasked: string | null;
+      enabled: boolean;
+      /** 最近写者 id（null＝种子/迁移写入） */
+      operatorId: string | null;
+      operatorName: string | null;
+      updatedAt: string;
+    }
+
+    /** POST /model-providers body——apiKey 写收全量值（写面唯一明文口；null/空白＝暂不配置）；enabled 装箱缺省＝provider true。 */
+    interface ModelProviderCreateCommand {
+      providerKey: string;
+      /** 必填（缺省 400 PRJ_069） */
+      baseUrl: string;
+      apiKey: string | null;
+      enabled: boolean | null;
+    }
+
+    /**
+     * PUT /model-providers/{providerKey} body——PUT 全量语义＋缺省肢保持特例：baseUrl 终态
+     * 替换必填；apiKey null/空白/等于现值掩码形＝保持现值（round-trip 安全），全量新值才换；
+     * enabled null＝保持（显式 true/false 才翻转——停用通道换 key 不被意外复启）。
+     */
+    interface ModelProviderUpdateCommand {
+      baseUrl: string;
+      apiKey: string | null;
+      enabled: boolean | null;
+    }
+
+    /**
+     * 通道变更留痕行（GET /{providerKey}/traces，服务端 operatedAt 倒序＝最近先）：一次实际
+     * 变更的前后全量值快照（值面无动＝幂等回执不落痕）；创建痕 old 三件全 null、删除痕 new
+     * 三件全 null；append-only 跨行存活。apiKey 快照恒掩码（不作密钥找回面——回滚换 key＝
+     * 操作者重输全量值）。回滚＝打开更新表单预填 old 值（非直接 PUT）。
+     */
+    interface ModelProviderTrace {
+      id: string;
+      oldBaseUrl: string | null;
+      oldApiKeyMasked: string | null;
+      /** Boolean 装箱（创建痕 null） */
+      oldEnabled: boolean | null;
+      newBaseUrl: string | null;
+      newApiKeyMasked: string | null;
+      /** Boolean 装箱（删除痕 null） */
+      newEnabled: boolean | null;
+      operatorId: string;
+      operatorName: string;
+      operatedAt: string;
+    }
+
+    /** 远端模型条目（对照目录成员）——trackedTierKeys 空＝远端有库里无（建议入库）；status 如实转述上游（null/空＝活跃口径）。 */
+    interface RemoteModelEntry {
+      /** 模型 ID（入库即此值——档位创建 modelName 填此） */
+      modelId: string;
+      name: string | null;
+      /** 上游状态如实转述（方舟：无 status＝活跃、Shutdown/Retiring＝下架/退场中——接口不代拍） */
+      status: string | null;
+      /** 领域辨识字段（上游有则出） */
+      domain: string | null;
+      /** 已入库档位键清单（空＝建议入库） */
+      trackedTierKeys: string[];
+    }
+
+    /** 库内过时档位行（staleTiers 成员）——实际模型名不在远端清单（过时判据，升版/改指向前处置）。 */
+    interface StaleTier {
+      tierKey: string;
+      modelName: string;
+      displayName: string | null;
+      enabled: boolean;
+    }
+
+    /**
+     * 远端清单拉取回执（POST /{providerKey}/remote-models）——每次全量真拉无缓存（手动同步）；
+     * 纯读探测不动库：勾选入库复用档位创建写口（POST /model-tiers），不经此响应回写。
+     * 上游不可用 502 PRJ_077 明确报错不静默；通道 key 空 400 PRJ_076 不打上游。
+     */
+    interface RemoteModelCatalog {
+      providerKey: string;
+      pulledAt: string;
+      remoteModels: RemoteModelEntry[];
+      staleTiers: StaleTier[];
+    }
+
+    /** 档位行（POST /model-tiers 回执；对照 drawer 入库复用此写口——T2 档位页全量消费）。displayName null＝回落 tierKey 展示。 */
+    interface ModelTier {
+      tierKey: string;
+      providerKey: string;
+      modelName: string;
+      displayName: string | null;
+      enabled: boolean;
+      operatorId: string | null;
+      operatorName: string | null;
+      updatedAt: string;
+    }
+
+    /**
+     * POST /model-tiers body（入库窄命令：providerKey＝本通道、modelName＝所选条目 modelId
+     * 预填；tierKey 人工命名）。守卫 provider 裁决：撞名 409 PRJ_068 / 通道不存在 400 PRJ_071 /
+     * 模型名缺失 400 PRJ_070。
+     */
+    interface ModelTierCreateCommand {
+      tierKey: string;
+      providerKey: string;
+      modelName: string;
+      displayName: string | null;
+      enabled: boolean | null;
+    }
   }
 }

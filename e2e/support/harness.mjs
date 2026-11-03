@@ -1,5 +1,5 @@
 /**
- * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，共用 seam）——page.route mock + 断言汇总。
+ * E2E 公共 harness（#57 落地、#58 泛化，#60/#61/#62/#63 扩沙箱/成本/单价表/素材域，#67 扩技能域（#68 指派、#69 智能体配置、#71 草稿域），#87 扩合同域，#88 扩模型供应商域，共用 seam）——page.route mock + 断言汇总。
  *
  * mock 派生自 admin :8081 `/v3/api-docs`（fixtures 见各域 support/*-fixtures.mjs）；
  * 错误信封按 AiplatformUpstreamErrorAdvice 形状：HTTP 状态照抄 provider、
@@ -55,14 +55,16 @@ export async function waitForMessage(page, predicate, timeoutMs = 10000) {
  * 安装 /proxy-default/** 全量 mock（auth / menus.my / aiplatform 各域）。
  *
  * @param page playwright page
- * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
- * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean}}}
+ * @param fixtures { order?, project?, workspace?, cost?, priceEntry?, material?, skill?, contract?, modelProvider? } 各域 fixtures（见 support/*-fixtures.mjs；域缺省＝不挂该域路由）
+ * @returns {{calls: Array, state: {failNextQuote: boolean, failNextWorkspaceWrite: boolean, failNextReprice: boolean, failNextMaterialWrite: boolean, failNextSkillInstall: boolean, failNextSkillWrite: boolean, failNextSkillUninstall: boolean, failNextSkillUpdate: boolean, failNextSkillAssign: boolean, failNextSkillPrecheck: boolean, failNextSkillDraftPromote: boolean, failNextSkillDraftReject: boolean, failNextAgentConfigUpdate: boolean, failNextAgentToolToggle: boolean, failNextContractWrite: boolean, failNextProviderDelete: boolean, failNextRemotePull: boolean, failNextTierCreate: boolean}}}
  *          calls=拦截到的请求流水（断言查询参数用）；state.failNext*＝下一次对应写抛业务错误信封
  *          （quote/workspaceWrite/reprice 抛 409，material 抛 400/404，skill 按动作族抛 502/400/409/409/400，
  *          skillDraftPromote 抛 409 SKL_016、skillDraftReject 抛 400 SKL_018，
  *          agentConfigUpdate 抛 400、agentToolToggle 抛 403——透传 toast 断言用；
  *          skillPrecheck 抛 400 SKL_011＝预检失败注入（错误族与 PUT 指派同源）；
- *          contractWrite 抛 409 ORD_027 双签门禁竞态——advance 末边可观测门控的兜底透传靶）
+ *          contractWrite 抛 409 ORD_027 双签门禁竞态——advance 末边可观测门控的兜底透传靶；
+ *          providerDelete 抛 409 PRJ_072 被档位引用、remotePull 抛 502 PRJ_077 上游不可用、
+ *          tierCreate 抛 409 PRJ_068 撞名——B 批 T1 透传 toast 断言靶）
  */
 export async function installAiplatformMocks(page, fixtures) {
   const calls = [];
@@ -81,7 +83,10 @@ export async function installAiplatformMocks(page, fixtures) {
     failNextSkillDraftReject: false,
     failNextAgentConfigUpdate: false,
     failNextAgentToolToggle: false,
-    failNextContractWrite: false
+    failNextContractWrite: false,
+    failNextProviderDelete: false,
+    failNextRemotePull: false,
+    failNextTierCreate: false
   };
 
   const json = (route, status, body) =>
@@ -648,6 +653,128 @@ export async function installAiplatformMocks(page, fixtures) {
     return { receipt: { ...fixtures.contract.CONTRACT_DETAILS[created.id].contract } };
   }
 
+  /* ---- 模型供应商域变异（#88；provider 通道聚合镜像——行·留痕双端就地变异，apiKey 即入即掩
+   * （铁律：明文只经写命令入、掩码出，fixture 永不存明文）；值面无动＝幂等回执零写入零落痕；
+   * 删除痕 new 全 null、留痕 append-only 跨行存活（行删留痕仍可读）。档位入库挂 TIER_ROWS＋
+   * 对照目录 trackedTierKeys 双端同步（再拉目录即见新档）---- */
+
+  const prj = (status, code, message) => [status, code, message];
+
+  /** 通道留痕 unshift（时间倒序最近先；操作者 E2E Mock 模拟 X-User 头落痕）。 */
+  function pushProviderTrace(providerKey, oldPart, newPart) {
+    (fixtures.modelProvider.PROVIDER_TRACES[providerKey] ??= []).unshift({
+      id: `7402250000000002${String(fixtures.modelProvider.PROVIDER_TRACES[providerKey]?.length ?? 0).padStart(3, '0')}`,
+      oldBaseUrl: null,
+      oldApiKeyMasked: null,
+      oldEnabled: null,
+      newBaseUrl: null,
+      newApiKeyMasked: null,
+      newEnabled: null,
+      ...oldPart,
+      ...newPart,
+      ...fixtures.modelProvider.PROVIDER_WRITE_OPERATOR,
+      operatedAt: fixtures.modelProvider.PROVIDER_WRITE_AT
+    });
+  }
+
+  /** 创建：键唯一（PRJ_067）、baseUrl 必填（PRJ_069）——apiKey 即入即掩；创建即落痕（old 全 null）。 */
+  function applyProviderCreate(command) {
+    if (fixtures.modelProvider.PROVIDER_ROWS.some(r => r.providerKey === command.providerKey)) {
+      return { error: prj(409, 4067, '通道键已存在（PRJ_067）') };
+    }
+    if (!command.baseUrl || String(command.baseUrl).trim() === '') {
+      return { error: prj(400, 4069, 'baseUrl 不能为空（PRJ_069）') };
+    }
+    const apiKey = String(command.apiKey ?? '').trim();
+    const row = {
+      providerKey: command.providerKey,
+      baseUrl: String(command.baseUrl).trim(),
+      apiKeyMasked: apiKey === '' ? null : fixtures.modelProvider.maskApiKey(apiKey),
+      enabled: command.enabled ?? true,
+      ...fixtures.modelProvider.PROVIDER_WRITE_OPERATOR,
+      updatedAt: fixtures.modelProvider.PROVIDER_WRITE_AT
+    };
+    fixtures.modelProvider.PROVIDER_ROWS.push(row);
+    fixtures.modelProvider.PROVIDER_ROWS.sort((a, b) => a.providerKey.localeCompare(b.providerKey));
+    pushProviderTrace(row.providerKey, {}, {
+      newBaseUrl: row.baseUrl,
+      newApiKeyMasked: row.apiKeyMasked,
+      newEnabled: row.enabled
+    });
+    return { receipt: { ...row } };
+  }
+
+  /**
+   * 更新（PUT 全量语义＋缺省肢保持特例）：baseUrl 终态替换；apiKey null/空白/等于现值掩码形
+   * ＝保持现值（round-trip 安全），携全量新值才换（即入即掩）；enabled null＝保持、显式才翻转；
+   * 三肢全无动＝幂等回执零落痕。
+   */
+  function applyProviderUpdate(row, command) {
+    if (!command.baseUrl || String(command.baseUrl).trim() === '') {
+      return { error: prj(400, 4069, 'baseUrl 不能为空（PRJ_069）') };
+    }
+    const apiKeyRaw = String(command.apiKey ?? '').trim();
+    const oldFacets = { baseUrl: row.baseUrl, apiKeyMasked: row.apiKeyMasked, enabled: row.enabled };
+    const next = {
+      baseUrl: String(command.baseUrl).trim(),
+      apiKeyMasked:
+        apiKeyRaw === '' || apiKeyRaw === row.apiKeyMasked ? row.apiKeyMasked : fixtures.modelProvider.maskApiKey(apiKeyRaw),
+      enabled: command.enabled == null ? row.enabled : command.enabled
+    };
+    if (JSON.stringify(oldFacets) !== JSON.stringify(next)) {
+      Object.assign(row, next, fixtures.modelProvider.PROVIDER_WRITE_OPERATOR, { updatedAt: fixtures.modelProvider.PROVIDER_WRITE_AT });
+      pushProviderTrace(
+        row.providerKey,
+        { oldBaseUrl: oldFacets.baseUrl, oldApiKeyMasked: oldFacets.apiKeyMasked, oldEnabled: oldFacets.enabled },
+        { newBaseUrl: next.baseUrl, newApiKeyMasked: next.apiKeyMasked, newEnabled: next.enabled }
+      );
+    }
+    return { receipt: { ...row } };
+  }
+
+  /** 删除：仍被档位引用即拒（PRJ_072——TIER_ROWS 自然裁决）；删成落删除痕（new 全 null、留痕跨行存活）。 */
+  function applyProviderDelete(row) {
+    if (fixtures.modelProvider.TIER_ROWS.some(t => t.providerKey === row.providerKey)) {
+      return { error: prj(409, 4072, '通道仍被档位引用，先删除或改挂其下档位（PRJ_072）') };
+    }
+    const receipt = { ...row };
+    const idx = fixtures.modelProvider.PROVIDER_ROWS.indexOf(row);
+    if (idx >= 0) fixtures.modelProvider.PROVIDER_ROWS.splice(idx, 1);
+    pushProviderTrace(
+      row.providerKey,
+      { oldBaseUrl: row.baseUrl, oldApiKeyMasked: row.apiKeyMasked, oldEnabled: row.enabled },
+      {}
+    );
+    return { receipt };
+  }
+
+  /** 档位入库（对照 drawer 内嵌写口）：撞名 PRJ_068 / 通道不存在 PRJ_071 / 模型名缺失 PRJ_070；成功＝档位行＋目录对照双端同步。 */
+  function applyTierCreate(command) {
+    if (fixtures.modelProvider.TIER_ROWS.some(t => t.tierKey === command.tierKey)) {
+      return { error: prj(409, 4068, '档位语义键已存在（PRJ_068）') };
+    }
+    if (!fixtures.modelProvider.PROVIDER_ROWS.some(r => r.providerKey === command.providerKey)) {
+      return { error: prj(400, 4071, '所属通道不存在，先建通道再挂档位（PRJ_071）') };
+    }
+    if (!command.modelName || String(command.modelName).trim() === '') {
+      return { error: prj(400, 4070, '实际模型名不能为空（PRJ_070）') };
+    }
+    const row = {
+      tierKey: command.tierKey,
+      providerKey: command.providerKey,
+      modelName: String(command.modelName).trim(),
+      displayName: command.displayName ?? null,
+      enabled: command.enabled ?? true,
+      ...fixtures.modelProvider.PROVIDER_WRITE_OPERATOR,
+      updatedAt: fixtures.modelProvider.PROVIDER_WRITE_AT
+    };
+    fixtures.modelProvider.TIER_ROWS.push(row);
+    // 对照目录同步（trackedTierKeys 单一事实源对齐——再拉目录即见新档）
+    const entry = fixtures.modelProvider.REMOTE_CATALOGS[row.providerKey]?.remoteModels.find(m => m.modelId === row.modelName);
+    if (entry) entry.trackedTierKeys.push(row.tierKey);
+    return { receipt: { ...row } };
+  }
+
   await page.route('**/proxy-default/**', async route => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/proxy-default', '');
@@ -710,7 +837,12 @@ export async function installAiplatformMocks(page, fixtures) {
             { code: 'admin:aiplatform:contract:withdraw', name: 'AI 平台 / 合同撤回' },
             { code: 'admin:aiplatform:contract:void', name: 'AI 平台 / 合同作废' },
             { code: 'admin:aiplatform:contract:sign', name: 'AI 平台 / 合同签署标记' },
-            { code: 'admin:aiplatform:contract:record', name: 'AI 平台 / 合同草稿重录' }
+            { code: 'admin:aiplatform:contract:record', name: 'AI 平台 / 合同草稿重录' },
+            { code: 'admin:aiplatform:model-provider:read', name: 'AI 平台 / 模型供应商查看' },
+            { code: 'admin:aiplatform:model-provider:create', name: 'AI 平台 / 模型供应商创建' },
+            { code: 'admin:aiplatform:model-provider:update', name: 'AI 平台 / 模型供应商维护' },
+            { code: 'admin:aiplatform:model-provider:delete', name: 'AI 平台 / 模型供应商删除' },
+            { code: 'admin:aiplatform:model-tier:create', name: 'AI 平台 / 模型档位创建' }
           ],
           menus: []
         },
@@ -891,6 +1023,21 @@ export async function installAiplatformMocks(page, fixtures) {
                   i18nKey: 'route.aiplatform_contract',
                   parentId: '82',
                   sortOrder: 11,
+                  menuType: 2,
+                  status: 1
+                },
+                {
+                  // V23 种子 270（B 批两叶之一）：三段键 aiplatform_model_provider、path 正典 /aiplatform/model/provider
+                  id: '270',
+                  menuName: '模型供应商',
+                  routeName: 'aiplatform_model_provider',
+                  routePath: '/aiplatform/model/provider',
+                  component: 'view.aiplatform_model_provider',
+                  icon: 'carbon:gateway',
+                  iconType: 1,
+                  i18nKey: 'route.aiplatform_model_provider',
+                  parentId: '82',
+                  sortOrder: 12,
                   menuType: 2,
                   status: 1
                 }
@@ -1214,6 +1361,83 @@ export async function installAiplatformMocks(page, fixtures) {
           if (result.error) return ord(...result.error);
           return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
         }
+      }
+    }
+
+    // ---- 模型供应商域（#88；7 端点——清单无分页全量直出、providerKey 路径段寻址；守卫族
+    // PRJ_065/067/069/072/076/077 自然裁决＋failNext 注入；对照 drawer 入库复用 POST /model-tiers）----
+    if (fixtures.modelProvider) {
+      const prjErr = (status, code, message) =>
+        json(route, status, { code, message, data: null, requestId: 'e2e-mock', errors: null });
+      const prj404 = () => prjErr(404, 4065, '通道不存在（PRJ_065）');
+      const findProvider = key => fixtures.modelProvider.PROVIDER_ROWS.find(r => r.providerKey === key);
+      if (path === '/aiplatform/model-providers' && method === 'GET') {
+        return json(route, 200, { code: 200, message: 'ok', data: fixtures.modelProvider.PROVIDER_ROWS.map(r => ({ ...r })), requestId: 'e2e-mock', errors: null });
+      }
+      if (path === '/aiplatform/model-providers' && method === 'POST') {
+        const result = applyProviderCreate(JSON.parse(route.request().postData() ?? '{}'));
+        if (result.error) return prjErr(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+      const remoteMatch = path.match(/^\/aiplatform\/model-providers\/([^/]+)\/remote-models$/);
+      if (remoteMatch && method === 'POST') {
+        const row = findProvider(remoteMatch[1]);
+        if (!row) return prj404();
+        if (state.failNextRemotePull) {
+          state.failNextRemotePull = false;
+          // 上游不可用明确报错不静默（PRJ_077）：HTTP 502 + 数字业务码 4077 + 原文 message（透传 toast 靶）
+          return prjErr(502, 4077, '远端模型清单拉取失败：上游服务不可用（PRJ_077）');
+        }
+        // 通道 key 空 400 PRJ_076——无凭证不打上游（moonshot 未配置 key 态的自然守卫）
+        if (!row.apiKeyMasked) return prjErr(400, 4076, '通道未配置 apiKey，无法拉取远端清单（PRJ_076）');
+        const catalog = fixtures.modelProvider.REMOTE_CATALOGS[row.providerKey];
+        if (!catalog) return prj404();
+        return json(route, 200, { code: 200, message: 'ok', data: JSON.parse(JSON.stringify(catalog)), requestId: 'e2e-mock', errors: null });
+      }
+      const tracesMatch = path.match(/^\/aiplatform\/model-providers\/([^/]+)\/traces$/);
+      if (tracesMatch && method === 'GET') {
+        // 留痕 append-only 跨行存活：行删后留痕仍可读（有痕即回）；无痕且无行＝从未有行 404
+        const traces = fixtures.modelProvider.PROVIDER_TRACES[tracesMatch[1]];
+        if (traces) return json(route, 200, { code: 200, message: 'ok', data: traces.map(t => ({ ...t })), requestId: 'e2e-mock', errors: null });
+        if (!findProvider(tracesMatch[1])) return prj404();
+        return json(route, 200, { code: 200, message: 'ok', data: [], requestId: 'e2e-mock', errors: null });
+      }
+      const providerMatch = path.match(/^\/aiplatform\/model-providers\/([^/]+)$/);
+      if (providerMatch && method === 'PUT') {
+        const row = findProvider(providerMatch[1]);
+        if (!row) return prj404();
+        const result = applyProviderUpdate(row, JSON.parse(route.request().postData() ?? '{}'));
+        if (result.error) return prjErr(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
+      }
+      if (providerMatch && method === 'DELETE') {
+        const row = findProvider(providerMatch[1]);
+        if (!row) return prj404();
+        if (state.failNextProviderDelete) {
+          state.failNextProviderDelete = false;
+          // 被档位引用（PRJ_072）：HTTP 409 + 数字业务码 4072 + 原文 message（注入竞态靶——
+          // TIER_ROWS 自然守卫之外，先删档位再删通道的时序窗）
+          return prjErr(409, 4072, '通道仍被档位引用，先删除或改挂其下档位（PRJ_072）');
+        }
+        const result = applyProviderDelete(row);
+        if (result.error) return prjErr(...result.error);
+        // DELETE 回执 data＝null（信封即回执）
+        return json(route, 200, { code: 200, message: 'ok', data: null, requestId: 'e2e-mock', errors: null });
+      }
+      if (providerMatch && method === 'GET') {
+        const row = findProvider(providerMatch[1]);
+        if (!row) return prj404();
+        return json(route, 200, { code: 200, message: 'ok', data: { ...row }, requestId: 'e2e-mock', errors: null });
+      }
+      // 档位入库（对照 drawer 内嵌写口——跨域端点挂本域 fixtures 门控）
+      if (path === '/aiplatform/model-tiers' && method === 'POST') {
+        if (state.failNextTierCreate) {
+          state.failNextTierCreate = false;
+          return prjErr(409, 4068, '档位语义键已存在（PRJ_068）');
+        }
+        const result = applyTierCreate(JSON.parse(route.request().postData() ?? '{}'));
+        if (result.error) return prjErr(...result.error);
+        return json(route, 200, { code: 200, message: 'ok', data: result.receipt, requestId: 'e2e-mock', errors: null });
       }
     }
 

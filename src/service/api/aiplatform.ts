@@ -60,6 +60,12 @@
  *   字段（needsUpdate 派生标志＋范围快照冻结三段＋双方签署位/落签时点）＋PRD 全文＋transitions
  *   新→旧。七写守卫全在 provider（ORD_02x 透传不判码）；七写回执均＝单段合同体（非三段
  *   detail）——前端不消费：toast＋详情回读＋列表刷新。创建重建无请求体（冻结集取现值）。
+ *
+ * 模型供应商域（#88 B 批 T1，通道 6＋档位入库 1 端点）：通道（providerKey＝协议路由前缀）
+ *   CRUD/远端清单拉取对照/变更留痕——清单无分页全量直灌（技能页先例）；apiKey 全链只写
+ *   不读明文（读面/留痕恒掩码尾 4 位，null＝未配置）；更新缺省肢＝保持现值（apiKey 留空＝
+ *   保持的 round-trip 安全语义）；远端拉取每次全量真拉无缓存、对照目录驱动「勾选入库」
+ *   （复用档位创建写口 POST /model-tiers——跨域码 model-tier:create）。
  */
 import { request } from '../request';
 
@@ -472,4 +478,48 @@ export function fetchSignAiplatformContract(id: string, data: Api.Aiplatform.Con
 /** POST /aiplatform/contracts/{id}/record——草稿重录五肢整组（仅草稿态 1/2；version+1、needsUpdate 清零、冻结集重取现值）。回执＝重录后现值（不消费）。 */
 export function fetchRecordAiplatformContract(id: string, data: Api.Aiplatform.ContractRecordCommand) {
   return request<Api.Aiplatform.Contract>({ url: `/aiplatform/contracts/${id}/record`, method: 'post', data });
+}
+
+/* ---- 模型供应商域（#88 B 批 T1，通道 6 端点＋档位入库 1 跨域写口）：providerKey＝协议路由
+ * 前缀路径段寻址（无 id）；清单无分页全量直灌（技能页先例）。apiKey 全链只写不读明文（铁律）
+ * ——读面/留痕一律掩码（尾 4 位，null＝未配置），写面唯一明文口＝创建/更新表单。单行 GET 与
+ * 清单行同形（清单即全量）故不另设调用面；换 key/baseUrl 即时生效不重启（模型实例缓存键含
+ * 通道指纹）。写回执＝通道行（apiKeyMasked，不消费：toast＋刷新）；DELETE 回 data=null。---- */
+
+/** GET /aiplatform/model-providers——通道清单（无分页全量、按键序；apiKey 只出掩码形）。 */
+export function fetchGetAiplatformModelProviderList() {
+  return request<Api.Aiplatform.ModelProvider[]>({ url: '/aiplatform/model-providers', method: 'get' });
+}
+
+/** POST /aiplatform/model-providers——创建通道（apiKey 收全量值＝写面唯一明文口；null/空白＝暂不配置）。键撞 409 PRJ_067、baseUrl 缺 400 PRJ_069。回执＝新通道行（掩码形，不消费）。 */
+export function fetchCreateAiplatformModelProvider(data: Api.Aiplatform.ModelProviderCreateCommand) {
+  return request<Api.Aiplatform.ModelProvider>({ url: '/aiplatform/model-providers', method: 'post', data });
+}
+
+/** PUT /aiplatform/model-providers/{providerKey}——通道更新（baseUrl 终态替换；apiKey/enabled 缺省＝保持现值——留空＝保持的表单语义对应命令体 null）。回执＝更新后行（不消费）。 */
+export function fetchUpdateAiplatformModelProvider(providerKey: string, data: Api.Aiplatform.ModelProviderUpdateCommand) {
+  return request<Api.Aiplatform.ModelProvider>({ url: `/aiplatform/model-providers/${providerKey}`, method: 'put', data });
+}
+
+/** DELETE /aiplatform/model-providers/{providerKey}——删除通道（仍被档位引用 409 PRJ_072 透传；删成落删除痕、留痕跨行存活）。回执 data＝null（信封即回执）。 */
+export function fetchDeleteAiplatformModelProvider(providerKey: string) {
+  return request<null>({ url: `/aiplatform/model-providers/${providerKey}`, method: 'delete' });
+}
+
+/** POST /aiplatform/model-providers/{providerKey}/remote-models——远端模型清单手动拉取（每次全量真拉无缓存；对照库内档位：trackedTierKeys 空＝建议入库、staleTiers＝已过时）。上游不可用 502 PRJ_077 明确报错不静默；key 空 400 PRJ_076。 */
+export function fetchPullAiplatformRemoteModels(providerKey: string) {
+  return request<Api.Aiplatform.RemoteModelCatalog>({
+    url: `/aiplatform/model-providers/${providerKey}/remote-models`,
+    method: 'post'
+  });
+}
+
+/** GET /aiplatform/model-providers/{providerKey}/traces——通道变更留痕（operatedAt 倒序＝最近先；apiKey 快照恒掩码；append-only 跨行存活）。 */
+export function fetchGetAiplatformModelProviderTraces(providerKey: string) {
+  return request<Api.Aiplatform.ModelProviderTrace[]>({ url: `/aiplatform/model-providers/${providerKey}/traces`, method: 'get' });
+}
+
+/** POST /aiplatform/model-tiers——档位创建（对照 drawer 内嵌入库复用此写口：providerKey＝本通道、modelName＝所选条目 modelId；hasAuth model-tier:create 跨域码）。撞名 409 PRJ_068、通道不存在 400 PRJ_071。回执＝档位行（不消费：toast＋本地对照态更新）。 */
+export function fetchCreateAiplatformModelTier(data: Api.Aiplatform.ModelTierCreateCommand) {
+  return request<Api.Aiplatform.ModelTier>({ url: '/aiplatform/model-tiers', method: 'post', data });
 }

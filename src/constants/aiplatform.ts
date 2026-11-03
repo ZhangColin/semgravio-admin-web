@@ -365,3 +365,21 @@ export const contractWriteAuth: Record<Api.Aiplatform.ContractAction, string> = 
 
 /** 创建/重建权限码（订单抽屉动作行「创建合同」入口常给门控——在场/可建由服务端 409 裁决透传）。 */
 export const CONTRACT_CREATE_AUTH = 'admin:aiplatform:contract:create';
+
+/* ---- 模型供应商域（#88 B 批 T1——通道 CRUD/远端清单拉取对照/留痕；读写分权、每写一码）---- */
+
+/** 通道三写动作（权限码 Record 的键约束；读面四端点共用 read 一码不逐项门控）。 */
+export type ModelProviderAction = 'create' | 'update' | 'delete';
+
+/** 通道三写权限码（hasAuth 门控——创建钮/编辑·删除下拉项/留痕回滚钮（回滚＝打开更新表单，update 码同门控））。 */
+export const modelProviderWriteAuth: Record<ModelProviderAction, string> = {
+  create: 'admin:aiplatform:model-provider:create',
+  update: 'admin:aiplatform:model-provider:update',
+  delete: 'admin:aiplatform:model-provider:delete'
+};
+
+/**
+ * 档位入库跨域权限码（对照 drawer 内嵌「入库」——复用档位创建写口 POST /model-tiers，
+ * 权限在彼处自然拦截故按档位域码门控；供应商域自身四码不含它）。
+ */
+export const MODEL_TIER_CREATE_AUTH = 'admin:aiplatform:model-tier:create';

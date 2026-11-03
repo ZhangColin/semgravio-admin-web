@@ -115,6 +115,25 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'aiplatform_model',
+        path: '/aiplatform/model',
+        meta: {
+          title: 'aiplatform_model',
+          i18nKey: 'route.aiplatform_model'
+        },
+        children: [
+          {
+            name: 'aiplatform_model_provider',
+            path: '/aiplatform/model/provider',
+            component: 'view.aiplatform_model_provider',
+            meta: {
+              title: 'aiplatform_model_provider',
+              i18nKey: 'route.aiplatform_model_provider'
+            }
+          }
+        ]
+      },
+      {
         name: 'aiplatform_order',
         path: '/aiplatform/order',
         component: 'view.aiplatform_order',

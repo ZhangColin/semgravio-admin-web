@@ -1765,6 +1765,82 @@ declare namespace App {
               record: string;
             };
           };
+          /** 模型供应商域（#88 B 批 T1——通道 CRUD/掩码口径/远端清单拉取对照＋内嵌入库/留痕）。 */
+          modelProvider: {
+            title: string;
+            providerKey: string;
+            baseUrl: string;
+            apiKeyMasked: string;
+            enabled: string;
+            enabledOn: string;
+            enabledOff: string;
+            lastWrite: string;
+            more: string;
+            edit: string;
+            remove: string;
+            traces: string;
+            tracesDrawer: {
+              title: string;
+              empty: string;
+              notConfigured: string;
+              createTag: string;
+              deleteTag: string;
+              rollback: string;
+              rollbackTip: string;
+              field: {
+                baseUrl: string;
+                apiKey: string;
+                enabled: string;
+              };
+            };
+            create: string;
+            pull: string;
+            catalogDrawer: {
+              title: string;
+              providerLine: string;
+              pulledAt: string;
+              modelId: string;
+              name: string;
+              status: string;
+              statusActive: string;
+              domain: string;
+              tracked: string;
+              suggestTag: string;
+              ingestColumn: string;
+              tierKeyPlaceholder: string;
+              ingest: string;
+              ingestSuccess: string;
+              staleTitle: string;
+              staleHint: string;
+              errorState: string;
+              retry: string;
+              empty: string;
+            };
+            confirm: {
+              delete: string;
+              deleteTip: string;
+            };
+            form: {
+              createTitle: string;
+              updateTitle: string;
+              createConfirm: string;
+              updateConfirm: string;
+              providerKey: string;
+              providerKeyPlaceholder: string;
+              baseUrl: string;
+              baseUrlPlaceholder: string;
+              apiKey: string;
+              apiKeyCreatePlaceholder: string;
+              apiKeyUpdatePlaceholder: string;
+              enabled: string;
+              effectTip: string;
+            };
+            success: {
+              create: string;
+              update: string;
+              delete: string;
+            };
+          };
         };
       };
       form: {
