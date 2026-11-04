@@ -475,7 +475,8 @@ export async function installAiplatformMocks(page, fixtures) {
       systemPrompt: row.systemPromptOverridden ? row.systemPrompt : null,
       modelId: row.modelIdOverridden ? row.modelId : null,
       webSearchEnabled: row.webSearchEnabled,
-      fetchUrlEnabled: row.fetchUrlEnabled
+      fetchUrlEnabled: row.fetchUrlEnabled,
+      routingStrongModelId: row.routingStrongModelIdOverridden ? row.routingStrongModelId : null
     };
   }
 
@@ -490,7 +491,8 @@ export async function installAiplatformMocks(page, fixtures) {
       systemPrompt: blankToNull(command.systemPrompt),
       modelId: blankToNull(command.modelId),
       webSearchEnabled: command.webSearchEnabled ?? true,
-      fetchUrlEnabled: command.fetchUrlEnabled ?? true
+      fetchUrlEnabled: command.fetchUrlEnabled ?? true,
+      routingStrongModelId: blankToNull(command.routingStrongModelId)
     };
     if (JSON.stringify(old) === JSON.stringify(next)) return;
     row.systemPrompt = next.systemPrompt ?? row.defaultSystemPrompt;
@@ -499,6 +501,8 @@ export async function installAiplatformMocks(page, fixtures) {
     row.modelIdOverridden = next.modelId != null;
     row.webSearchEnabled = next.webSearchEnabled;
     row.fetchUrlEnabled = next.fetchUrlEnabled;
+    row.routingStrongModelId = next.routingStrongModelId ?? row.defaultRoutingStrongModelId;
+    row.routingStrongModelIdOverridden = next.routingStrongModelId != null;
     row.operatorId = '1';
     row.operatorName = 'E2E Mock';
     row.updatedAt = '2026-09-24T12:00:00Z';
@@ -508,13 +512,44 @@ export async function installAiplatformMocks(page, fixtures) {
       oldModelId: old.modelId,
       oldWebSearchEnabled: old.webSearchEnabled,
       oldFetchUrlEnabled: old.fetchUrlEnabled,
+      oldRoutingStrongModelId: old.routingStrongModelId,
       newSystemPrompt: next.systemPrompt,
       newModelId: next.modelId,
       newWebSearchEnabled: next.webSearchEnabled,
       newFetchUrlEnabled: next.fetchUrlEnabled,
+      newRoutingStrongModelId: next.routingStrongModelId,
       operatorId: '1',
       operatorName: 'E2E Mock',
       operatedAt: '2026-09-24T12:00:00Z'
+    });
+  }
+
+  /** 边缘点窄写（provider 镜像）：仅 modelId；null/空白回落 flash，同值幂等零落痕。 */
+  function applyEdgeModelUpdate(key, command) {
+    const row = fixtures.skill.EDGE_CONFIGS[key];
+    const oldModelId = row.modelIdOverridden ? row.modelId : null;
+    const nextModelId = blankToNull(command.modelId);
+    if (oldModelId === nextModelId) return;
+    row.modelId = nextModelId ?? row.defaultModelId;
+    row.modelIdOverridden = nextModelId != null;
+    row.operatorId = '1';
+    row.operatorName = 'E2E Mock';
+    row.updatedAt = '2026-11-04T12:00:00Z';
+    fixtures.skill.EDGE_TRACES[key].unshift({
+      id: `7402240000000002${String(fixtures.skill.EDGE_TRACES[key].length).padStart(2, '0')}`,
+      oldSystemPrompt: null,
+      oldModelId,
+      oldWebSearchEnabled: true,
+      oldFetchUrlEnabled: true,
+      oldRoutingStrongModelId: null,
+      newSystemPrompt: null,
+      newModelId: nextModelId,
+      newWebSearchEnabled: true,
+      newFetchUrlEnabled: true,
+      newRoutingStrongModelId: null,
+      operatorId: '1',
+      operatorName: 'E2E Mock',
+      operatedAt: '2026-11-04T12:00:00Z'
     });
   }
 
@@ -1055,6 +1090,7 @@ export async function installAiplatformMocks(page, fixtures) {
             { code: 'admin:aiplatform:skill-draft:read', name: 'AI 平台 / 草稿审核查看' },
             { code: 'admin:aiplatform:skill-draft:promote', name: 'AI 平台 / 草稿晋升' },
             { code: 'admin:aiplatform:skill-draft:reject', name: 'AI 平台 / 草稿拒绝' },
+            { code: 'admin:aiplatform:agent-config:read', name: 'AI 平台 / 智能体配置查看' },
             { code: 'admin:aiplatform:agent-config:update', name: 'AI 平台 / 智能体配置更新' },
             { code: 'admin:aiplatform:agent-tool:toggle', name: 'AI 平台 / 智能体工具开关' },
             { code: 'admin:aiplatform:account:read', name: 'AI 平台 / 账号档案查看' },
@@ -1900,6 +1936,19 @@ export async function installAiplatformMocks(page, fixtures) {
           return json(route, 200, { code: 200, message: 'ok', data: { ...draft }, requestId: 'e2e-mock', errors: null });
         }
       }
+      // ---- 边缘调用点（#91；GET/PUT config＋GET traces，窄命令体仅 modelId）----
+      const edgeConfigMatch = path.match(/^\/aiplatform\/agent-configs\/edge\/([^/]+)(\/traces)?$/);
+      if (edgeConfigMatch) {
+        const key = edgeConfigMatch[1];
+        if (!fixtures.skill.EDGE_KEYS.includes(key)) {
+          return json(route, 404, { code: 4064, message: '边缘调用点不存在（PRJ_064）', data: null, requestId: 'e2e-mock', errors: null });
+        }
+        if (edgeConfigMatch[2] === '/traces' && method === 'GET') {
+          return json(route, 200, { code: 200, message: 'ok', data: fixtures.skill.EDGE_TRACES[key].map(t => ({ ...t })), requestId: 'e2e-mock', errors: null });
+        }
+        if (method === 'PUT') applyEdgeModelUpdate(key, JSON.parse(route.request().postData() ?? '{}'));
+        return json(route, 200, { code: 200, message: 'ok', data: { ...fixtures.skill.EDGE_CONFIGS[key] }, requestId: 'e2e-mock', errors: null });
+      }
       // ---- 智能体配置域（#69；agent-configs 3 + agent-tools 2。GET/PUT 回执同形读面；
       // 工具开关窄幅写口挂 main 行开关列——与配置全量写共表共留痕）----
       const agentConfigMatch = path.match(/^\/aiplatform\/agent-configs\/([^/]+)(\/traces)?$/);
@@ -1914,6 +1963,14 @@ export async function installAiplatformMocks(page, fixtures) {
           return json(route, 200, { code: 200, message: 'ok', data: traces.map(t => ({ ...t })), requestId: 'e2e-mock', errors: null });
         }
         if (method === 'PUT') {
+          if (state.failNextAgentConfigMissingTier) {
+            state.failNextAgentConfigMissingTier = false;
+            return json(route, 400, { code: 4074, message: '绑定的模型档位不存在——先在模型档位面建行（PRJ_074）', data: null, requestId: 'e2e-mock', errors: null });
+          }
+          if (state.failNextAgentConfigDisabledTier) {
+            state.failNextAgentConfigDisabledTier = false;
+            return json(route, 400, { code: 4075, message: '绑定的模型档位已停用——启用该档位或改绑其他档位（PRJ_075）', data: null, requestId: 'e2e-mock', errors: null });
+          }
           if (state.failNextAgentConfigUpdate) {
             state.failNextAgentConfigUpdate = false;
             // 操作者缺留痕头（PRJ_034）：HTTP 400 + 数字业务码 4034 + 原文 message（失败注入代表样）

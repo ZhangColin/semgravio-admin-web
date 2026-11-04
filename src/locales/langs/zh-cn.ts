@@ -1487,21 +1487,31 @@ const local: App.I18n.Schema = {
           resolution: '消解方向'
         }
       },
-      /** 智能体配置页（#69——技能线 agent-configs 3 + agent-tools 2 端点；两座编辑卡＋留痕时间线＋工具面）。 */
+      /** 智能体配置页（#69 初建；#91 三座双档＋边缘四点＋工具面）。 */
       agentConfig: {
         title: '智能体配置',
         tab: {
-          tools: '工具面'
+          tools: '工具面',
+          edge: '边缘调用点'
         },
         agent: {
           main: '主智能体',
-          executor: 'run 执行体'
+          executor: 'run 执行体',
+          designer: '设计执行体'
+        },
+        edge: {
+          naming: '项目取名',
+          compaction: '上下文压缩',
+          classification: '入口分类',
+          precheck: '技能预检'
         },
         edit: {
           systemPrompt: '系统提示词',
           systemPromptPlaceholder: '留空＝回落默认（覆盖态清空）',
           modelId: '模型档位',
-          modelIdPlaceholder: '模型档位裸名（如 deepseek-v4-pro；无白名单，错值靠留痕回滚兜底）',
+          routingStrongModelId: '路由强档',
+          modelIdPlaceholder: '请选择模型档位；清空保存后回落默认',
+          tierDisabled: '已停用',
           overridden: '已覆盖',
           defaultTag: '默认',
           fallbackPrompt: '清空保存后回落默认提示词',
@@ -1522,6 +1532,7 @@ const local: App.I18n.Schema = {
         field: {
           systemPrompt: '系统提示词',
           modelId: '模型档位',
+          routingStrongModelId: '路由强档',
           webSearch: '联网搜索',
           fetchUrl: '网页抓取'
         },

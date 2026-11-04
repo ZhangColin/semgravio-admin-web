@@ -402,14 +402,12 @@ export const SKILL_ASSIGNMENTS = {
 /** subagent 空→非空靶（doc-writer 行 id——PUT body 断言锚）。 */
 export const EMPTY_SLOT_ROW_ID = '740223456789000301';
 
-/* ---- 智能体配置域（#69；`AiplatformAgentConfigResponse` / `AiplatformAgentConfigTraceResponse`
- * / `AiplatformAgentToolResponse` / `AiplatformAgentToolSlotResponse`——api-docs 实读）。契约要点：
- * main 默认档 deepseek-v4-flash、executor 默认档 deepseek-v4-pro（provider AgentProfile 镜像）；
- * PUT 全量终态（systemPrompt/modelId null/缺省/纯空白＝清覆盖回落默认、两 flag 缺省＝true 开）；
- * 工具开关窄幅写口挂 **main 行开关列**（provider toggleTool——与配置写共表共留痕），故工具面
- * main 槽两增强件挂载态＝main 配置 flag（harness 读面派生保持同源）。覆盖矩阵：main＝双覆盖靶
- * （prompt+modelId 已覆盖、fetchUrl 关——flag 透传断言锚）/ executor＝全默认靶（无覆盖行、
- * 留痕空态）。留痕两条：t1 双字段变化（变化项过滤：两 flag 不显）/ t2 仅 fetchUrl 变化。
+/* ---- 智能体配置域（#69 初建；#91 档位化＋designer＋边缘四点）。契约要点：
+ * 三座默认档 main/executor=flash、designer=pro，强档默认均 pro；边缘四点默认均 flash；
+ * PUT 五字段全量终态（null/缺省/纯空白＝清覆盖回落默认、两 flag 缺省＝true 开）；
+ * 工具开关窄幅写口挂 **main 行开关列**，main 槽增强件挂载态由 harness 按 main 配置 flag 派生。
+ * 覆盖矩阵：main＝prompt/主档/强档三覆盖（主档 legacy-pro 已停用、fetchUrl 关）/executor、
+ * designer＝全默认；边缘 naming=pro 覆盖，其余默认。留痕覆盖变化项过滤＋null「（默认）」。
  * ---- */
 
 /** main 座枚举默认 prompt（覆盖预览/回落落点断言锚——清空覆盖即回此值）。 */
@@ -421,8 +419,8 @@ export const MAIN_OVERRIDE_PROMPT = '定制版主智能体提示词：聚焦电�
 /** executor 座枚举默认 prompt（全默认靶——生效值＝默认原文）。 */
 export const EXECUTOR_DEFAULT_PROMPT = '你是 run 执行体：负责生成/更新 run 的执行侧读写。（E2E 默认 prompt 锚）';
 
-/** main 座覆盖模型档位（回滚 PUT body 断言锚）。 */
-export const MAIN_OVERRIDE_MODEL = 'deepseek-v4-max';
+/** main 座覆盖模型档位（已绑定后遭停用的警示靶；回滚 PUT body 断言锚）。 */
+export const MAIN_OVERRIDE_MODEL = 'legacy-pro';
 
 /** 配置读面（harness 写变异就地改；executor 无覆盖行＝写者 null 全回落）。 */
 export const AGENT_CONFIGS = {
@@ -434,9 +432,12 @@ export const AGENT_CONFIGS = {
     systemPromptOverridden: true,
     modelIdOverridden: true,
     defaultSystemPrompt: MAIN_DEFAULT_PROMPT,
-    defaultModelId: 'deepseek-v4-flash',
+    defaultModelId: 'flash',
     webSearchEnabled: true,
     fetchUrlEnabled: false,
+    routingStrongModelId: 'doubao-flagship',
+    routingStrongModelIdOverridden: true,
+    defaultRoutingStrongModelId: 'pro',
     operatorId: '700200',
     operatorName: '运营·技能管理员',
     updatedAt: '2026-09-20T09:30:00Z'
@@ -445,25 +446,46 @@ export const AGENT_CONFIGS = {
     agentKey: 'executor',
     agentName: 'run 执行体',
     systemPrompt: EXECUTOR_DEFAULT_PROMPT,
-    modelId: 'deepseek-v4-pro',
+    modelId: 'flash',
     systemPromptOverridden: false,
     modelIdOverridden: false,
     defaultSystemPrompt: EXECUTOR_DEFAULT_PROMPT,
-    defaultModelId: 'deepseek-v4-pro',
+    defaultModelId: 'flash',
     webSearchEnabled: true,
     fetchUrlEnabled: true,
+    routingStrongModelId: 'pro',
+    routingStrongModelIdOverridden: false,
+    defaultRoutingStrongModelId: 'pro',
+    operatorId: null,
+    operatorName: null,
+    updatedAt: null
+  },
+  designer: {
+    agentKey: 'designer',
+    agentName: '设计执行体',
+    systemPrompt: '你是设计执行体：负责页面与视觉方案产出。（E2E 默认 prompt 锚）',
+    modelId: 'pro',
+    systemPromptOverridden: false,
+    modelIdOverridden: false,
+    defaultSystemPrompt: '你是设计执行体：负责页面与视觉方案产出。（E2E 默认 prompt 锚）',
+    defaultModelId: 'pro',
+    webSearchEnabled: true,
+    fetchUrlEnabled: true,
+    routingStrongModelId: 'pro',
+    routingStrongModelIdOverridden: false,
+    defaultRoutingStrongModelId: 'pro',
     operatorId: null,
     operatorName: null,
     updatedAt: null
   }
 };
 
-/** 配置座两键（路径段寻址；mock 对未知键 404 PRJ_033＝4033）。 */
-export const AGENT_KEYS = ['main', 'executor'];
+/** 配置座三键（路径段寻址；mock 对未知键 404 PRJ_033＝4033）。 */
+export const AGENT_KEYS = ['main', 'executor', 'designer'];
 
 /**
  * 配置变更留痕（operatedAt 倒序预排——最近在前；harness 写变异 unshift 新痕）。
- * t2（新）＝仅 fetchUrl 关——「只渲染变化项」靶；t1（旧）＝prompt+modelId 双覆盖——
+ * t2（新）＝仅 fetchUrl 关——「只渲染变化项」靶；t1（旧）＝prompt+主档+强档三覆盖——
  * 多字段变化＋null 显「（默认）」靶（两 flag 未动不显）。
  */
 export const AGENT_TRACES = {
@@ -474,10 +496,12 @@ export const AGENT_TRACES = {
       oldModelId: MAIN_OVERRIDE_MODEL,
       oldWebSearchEnabled: true,
       oldFetchUrlEnabled: true,
+      oldRoutingStrongModelId: 'doubao-flagship',
       newSystemPrompt: MAIN_OVERRIDE_PROMPT,
       newModelId: MAIN_OVERRIDE_MODEL,
       newWebSearchEnabled: true,
       newFetchUrlEnabled: false,
+      newRoutingStrongModelId: 'doubao-flagship',
       operatorId: '700200',
       operatorName: '运营·技能管理员',
       operatedAt: '2026-09-20T09:30:00Z'
@@ -488,16 +512,91 @@ export const AGENT_TRACES = {
       oldModelId: null,
       oldWebSearchEnabled: true,
       oldFetchUrlEnabled: true,
+      oldRoutingStrongModelId: null,
       newSystemPrompt: MAIN_OVERRIDE_PROMPT,
       newModelId: MAIN_OVERRIDE_MODEL,
       newWebSearchEnabled: true,
       newFetchUrlEnabled: true,
+      newRoutingStrongModelId: 'doubao-flagship',
       operatorId: '1',
       operatorName: '王建设',
       operatedAt: '2026-09-10T08:00:00Z'
     }
   ],
-  executor: []
+  executor: [],
+  designer: []
+};
+
+/** 边缘调用点四键（值面仅 modelId；缺省全部 flash）。 */
+export const EDGE_KEYS = ['naming', 'compaction', 'classification', 'precheck'];
+
+/** 边缘四点读面：naming=pro 覆盖靶，其余三点全默认。 */
+export const EDGE_CONFIGS = {
+  naming: {
+    agentKey: 'naming',
+    agentName: '项目取名',
+    modelId: 'pro',
+    modelIdOverridden: true,
+    defaultModelId: 'flash',
+    operatorId: '700210',
+    operatorName: '运营·智能体管理员',
+    updatedAt: '2026-10-20T10:00:00Z'
+  },
+  compaction: {
+    agentKey: 'compaction',
+    agentName: '上下文压缩',
+    modelId: 'flash',
+    modelIdOverridden: false,
+    defaultModelId: 'flash',
+    operatorId: null,
+    operatorName: null,
+    updatedAt: null
+  },
+  classification: {
+    agentKey: 'classification',
+    agentName: '入口分类',
+    modelId: 'flash',
+    modelIdOverridden: false,
+    defaultModelId: 'flash',
+    operatorId: null,
+    operatorName: null,
+    updatedAt: null
+  },
+  precheck: {
+    agentKey: 'precheck',
+    agentName: '技能预检',
+    modelId: 'flash',
+    modelIdOverridden: false,
+    defaultModelId: 'flash',
+    operatorId: null,
+    operatorName: null,
+    updatedAt: null
+  }
+};
+
+/** 边缘留痕与三座同 DTO；非档位快照件恒缺省态。 */
+export const EDGE_TRACES = {
+  naming: [
+    {
+      id: '740224000000000101',
+      oldSystemPrompt: null,
+      oldModelId: null,
+      oldWebSearchEnabled: true,
+      oldFetchUrlEnabled: true,
+      oldRoutingStrongModelId: null,
+      newSystemPrompt: null,
+      newModelId: 'pro',
+      newWebSearchEnabled: true,
+      newFetchUrlEnabled: true,
+      newRoutingStrongModelId: null,
+      operatorId: '700210',
+      operatorName: '运营·智能体管理员',
+      operatedAt: '2026-10-20T10:00:00Z'
+    }
+  ],
+  compaction: [],
+  classification: [],
+  precheck: []
 };
 
 /**

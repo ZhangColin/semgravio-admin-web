@@ -396,8 +396,8 @@ export function fetchPrecheckAiplatformSkillAssignment(slot: Api.Aiplatform.Skil
   });
 }
 
-/* ---- 智能体配置域（#69，技能线 agent-configs 3 + agent-tools 2 端点；保存四字段全量回传——
- * 两工具 flag 以 GET 回显原值透传（契约「缺省＝true 开」，防静默误开）。 ---- */
+/* ---- 智能体配置域（#69 初建；#91 扩 designer/强档/edge 3 端点）：三座保存五字段全量回传，
+ * 两工具 flag 以 GET 原值透传；边缘点写体仅 modelId。 ---- */
 
 /** GET /aiplatform/agent-configs/{agentKey}——配置读面（生效值＋覆盖标记＋默认预览＋两增强工具开关＋最近写者；未知键 404 PRJ_033＝4033）。 */
 export function fetchGetAiplatformAgentConfig(agentKey: Api.Aiplatform.AgentKey) {
@@ -412,6 +412,21 @@ export function fetchUpdateAiplatformAgentConfig(agentKey: Api.Aiplatform.AgentK
 /** GET /aiplatform/agent-configs/{agentKey}/traces——配置变更留痕（operatedAt 倒序＝最近先，服务端定死；回滚依据）。 */
 export function fetchGetAiplatformAgentConfigTraces(agentKey: Api.Aiplatform.AgentKey) {
   return request<Api.Aiplatform.AgentConfigTrace[]>({ url: `/aiplatform/agent-configs/${agentKey}/traces`, method: 'get' });
+}
+
+/** GET /aiplatform/agent-configs/edge/{edgeKey}——边缘调用点档位读面（值面仅 modelId；默认 flash）。 */
+export function fetchGetAiplatformEdgeModelConfig(edgeKey: Api.Aiplatform.EdgeKey) {
+  return request<Api.Aiplatform.EdgeModelConfig>({ url: `/aiplatform/agent-configs/edge/${edgeKey}`, method: 'get' });
+}
+
+/** PUT /aiplatform/agent-configs/edge/{edgeKey}——边缘档位窄写（body 仅 modelId；null/空白＝清空回落 flash）。 */
+export function fetchUpdateAiplatformEdgeModel(edgeKey: Api.Aiplatform.EdgeKey, data: Api.Aiplatform.EdgeModelUpdateCommand) {
+  return request<Api.Aiplatform.EdgeModelConfig>({ url: `/aiplatform/agent-configs/edge/${edgeKey}`, method: 'put', data });
+}
+
+/** GET /aiplatform/agent-configs/edge/{edgeKey}/traces——边缘档位留痕（与三座同 DTO，倒序）。 */
+export function fetchGetAiplatformEdgeModelTraces(edgeKey: Api.Aiplatform.EdgeKey) {
+  return request<Api.Aiplatform.AgentConfigTrace[]>({ url: `/aiplatform/agent-configs/edge/${edgeKey}/traces`, method: 'get' });
 }
 
 /** GET /aiplatform/agent-tools——工具面清单（按职能槽位列当前挂载工具；呈现序＝平台资产在前、harness 内建在后）。 */

@@ -270,13 +270,25 @@ export const SKILL_ASSIGN_AUTH = 'admin:aiplatform:skill:assign';
 
 /* ---- 智能体配置域（#69）---- */
 
-/** 配置座两键（NTabs 前两签顺序；路径段寻址，未知键 404 PRJ_033——前端两键固定不可达）。 */
-export const AGENT_KEYS: readonly Api.Aiplatform.AgentKey[] = ['main', 'executor'];
+/** 配置座三键（NTabs 前三签顺序；路径段寻址，未知键 404 PRJ_033——前端三键固定不可达）。 */
+export const AGENT_KEYS: readonly Api.Aiplatform.AgentKey[] = ['main', 'executor', 'designer'];
 
-/** 配置座签 label（端侧两值映射——签渲染先于读面到手；读面到手后编辑卡题直读 agentName）。 */
+/** 配置座签 label（端侧三值映射——签渲染先于读面到手；读面到手后编辑卡题直读 agentName）。 */
 export const agentKeyLabel: Record<Api.Aiplatform.AgentKey, App.I18n.I18nKey> = {
   main: 'page.aiplatform.agentConfig.agent.main',
-  executor: 'page.aiplatform.agentConfig.agent.executor'
+  executor: 'page.aiplatform.agentConfig.agent.executor',
+  designer: 'page.aiplatform.agentConfig.agent.designer'
+};
+
+/** 边缘调用点四键（合一签内纵排顺序；各点默认档全部 flash）。 */
+export const EDGE_KEYS: readonly Api.Aiplatform.EdgeKey[] = ['naming', 'compaction', 'classification', 'precheck'];
+
+/** 边缘点 label（响应 agentName 到手前的回落；与配置座签分 namespace 防混称）。 */
+export const edgeKeyLabel: Record<Api.Aiplatform.EdgeKey, App.I18n.I18nKey> = {
+  naming: 'page.aiplatform.agentConfig.edge.naming',
+  compaction: 'page.aiplatform.agentConfig.edge.compaction',
+  classification: 'page.aiplatform.agentConfig.edge.classification',
+  precheck: 'page.aiplatform.agentConfig.edge.precheck'
 };
 
 /** 工具面类别端侧三值映射（kind string 裸值无 *Name——skillSlotLabel 先例：i18n key 单点）。 */
@@ -292,6 +304,9 @@ export const agentToolKindTagColor: Record<Api.Aiplatform.AgentToolKind, NaiveUI
   ENHANCEMENT: 'warning',
   HARNESS_BUILTIN: 'default'
 };
+
+/** 配置读权限码（仅边缘调用点签显隐；三座与工具面签不设页内门控）。 */
+export const AGENT_CONFIG_READ_AUTH = 'admin:aiplatform:agent-config:read';
 
 /** 配置写权限码（门控编辑卡保存钮与留痕条目「回滚」——回滚＝PUT 配置写同码）。 */
 export const AGENT_CONFIG_UPDATE_AUTH = 'admin:aiplatform:agent-config:update';

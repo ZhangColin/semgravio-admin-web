@@ -56,10 +56,9 @@
  *   错误码数字形＝域码 7×1000＋序号（SKL_001→7001 查无 404 / SKL_002–007 安装失败族 /
  *   SKL_008→7008 有指派在身 409 / SKL_013→7013 更新整体拒绝 409）。
  *
- * 智能体配置域（#69 智能体配置，技能线 agent-configs 3 + agent-tools 2 端点）：两座智能体
- *   （main/executor）覆盖态读写——PUT 全量终态（null/缺省/纯空白＝清覆盖回落枚举默认；
- *   webSearch/fetchUrl 两 flag **缺省＝true 开**→保存四字段全量回传防静默误开）；变更留痕
- *   append-only 倒序（值面有动才落痕、幂等回执零写入）、回滚＝old* 快照写回（无专用端点）。
+ * 智能体配置域（#69 初建；#91 扩 edge 3 端点）：三座智能体（main/executor/designer）
+ *   覆盖态读写——PUT 五字段全量终态（null/缺省/纯空白＝清覆盖回落默认；webSearch/fetchUrl
+ *   两 flag **缺省＝true 开**→原值透传防静默误开）；变更留痕 append-only 倒序，回滚＝old 快照写回。
  *   工具开关窄幅写口 PUT /agent-tools/{toolName} 仅增强两件（web_search/fetch_url——挂 main
  *   行开关列，与配置写共表共留痕）；骨架/harness 内建 403 PRJ_036 锁死、enabled 缺省 400
  *   PRJ_037。错误码数字形＝PRJ 4xxx（4033 查无 404 / 4034 操作者缺 400 / 4035 工具无 404 /
@@ -974,8 +973,8 @@ declare namespace Api {
 
     /* ---- 智能体配置域（#69 智能体配置，技能线 agent-configs 3 + agent-tools 2 端点）---- */
 
-    /** 配置座稳定键（两座，路径段寻址）：main=主智能体 / executor=run 执行体——未知键 404 PRJ_033（4033）。 */
-    type AgentKey = 'main' | 'executor';
+    /** 配置座稳定键（三座，路径段寻址）：main=主智能体 / executor=run 执行体 / designer=设计执行体——未知键 404 PRJ_033（4033）。 */
+    type AgentKey = 'main' | 'executor' | 'designer';
 
     /**
      * 工具面类别（string 裸值三态，**无 *Name 字段**——端侧小映射）：SKELETON=骨架
@@ -995,7 +994,7 @@ declare namespace Api {
       agentName: string;
       /** 生效 systemPrompt（装配实取值；覆盖时非 default 原文） */
       systemPrompt: string;
-      /** 生效模型档位裸名 */
+      /** 生效模型档位键（tierKey，如 flash/pro） */
       modelId: string;
       systemPromptOverridden: boolean;
       modelIdOverridden: boolean;
@@ -1007,15 +1006,20 @@ declare namespace Api {
       webSearchEnabled: boolean;
       /** 网页抓取开关生效态 */
       fetchUrlEnabled: boolean;
+      /** 路由强档生效值（库覆盖值或代码缺省 pro） */
+      routingStrongModelId: string;
+      routingStrongModelIdOverridden: boolean;
+      /** 代码缺省强档（清空覆盖即落此值） */
+      defaultRoutingStrongModelId: string;
       operatorId: string | null;
       operatorName: string | null;
       updatedAt: string | null;
     }
 
     /**
-     * PUT /agent-configs/{agentKey} body——全量终态：systemPrompt/modelId null/缺省/纯空白＝
-     * 清空覆盖回落枚举默认；webSearchEnabled/fetchUrlEnabled **缺省＝true（开）**——前端保存
-     * 时四字段全量回传（两 flag 以 GET 回显原值透传，防静默误开）。值面无动＝幂等回执
+     * PUT /agent-configs/{agentKey} body——全量终态：systemPrompt/modelId/routingStrongModelId
+     * null/缺省/纯空白＝清空覆盖回落默认；webSearchEnabled/fetchUrlEnabled **缺省＝true（开）**——
+     * 前端保存时五字段全量回传（两 flag 以 GET 回显原值透传，防静默误开）。值面无动＝幂等回执
      * （不落痕不写行）。
      */
     interface AgentConfigUpdateCommand {
@@ -1023,11 +1027,12 @@ declare namespace Api {
       modelId: string | null;
       webSearchEnabled: boolean;
       fetchUrlEnabled: boolean;
+      routingStrongModelId: string | null;
     }
 
     /**
      * 配置变更留痕行（GET /agent-configs/{agentKey}/traces；服务端定死 operatedAt 倒序＝最近先）：
-     * old/new 四件对全量快照，null＝缺省回落态；**无专用回滚端点**——回滚＝old 四值快照
+     * old/new 五件对全量快照，null＝缺省回落态；**无专用回滚端点**——回滚＝old 五值快照
      * PUT 写回（＝一次新变更、留新痕）。
      */
     interface AgentConfigTrace {
@@ -1037,13 +1042,35 @@ declare namespace Api {
       oldModelId: string | null;
       oldWebSearchEnabled: boolean;
       oldFetchUrlEnabled: boolean;
+      oldRoutingStrongModelId: string | null;
       newSystemPrompt: string | null;
       newModelId: string | null;
       newWebSearchEnabled: boolean;
       newFetchUrlEnabled: boolean;
+      newRoutingStrongModelId: string | null;
       operatorId: string;
       operatorName: string;
       operatedAt: string;
+    }
+
+    /** 边缘调用点稳定键：naming=项目取名 / compaction=上下文压缩 / classification=入口分类 / precheck=技能预检。 */
+    type EdgeKey = 'naming' | 'compaction' | 'classification' | 'precheck';
+
+    /** 边缘调用点档位读面（GET/PUT /agent-configs/edge/{edgeKey} 回执同形），值面仅 modelId。 */
+    interface EdgeModelConfig {
+      agentKey: EdgeKey;
+      agentName: string;
+      modelId: string;
+      modelIdOverridden: boolean;
+      defaultModelId: string;
+      operatorId: string | null;
+      operatorName: string | null;
+      updatedAt: string | null;
+    }
+
+    /** 边缘调用点窄写命令：null/空白＝清空覆盖回落 flash。 */
+    interface EdgeModelUpdateCommand {
+      modelId: string | null;
     }
 
     /** 工具面行（GET /agent-tools tools 元素 = PUT /agent-tools/{toolName} 回执，同 schema）：骨架/harness 内建恒 true 锁死、增强按运营配置生效态。 */

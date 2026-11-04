@@ -1704,21 +1704,31 @@ declare namespace App {
               resolution: string;
             };
           };
-          /** 智能体配置页（#69——技能线 agent-configs 3 + agent-tools 2 端点；两座编辑卡＋留痕时间线＋工具面）。 */
+          /** 智能体配置页（#69 初建；#91 三座双档＋边缘四点＋工具面）。 */
           agentConfig: {
             title: string;
             tab: {
               tools: string;
+              edge: string;
             };
             agent: {
               main: string;
               executor: string;
+              designer: string;
+            };
+            edge: {
+              naming: string;
+              compaction: string;
+              classification: string;
+              precheck: string;
             };
             edit: {
               systemPrompt: string;
               systemPromptPlaceholder: string;
               modelId: string;
+              routingStrongModelId: string;
               modelIdPlaceholder: string;
+              tierDisabled: string;
               overridden: string;
               defaultTag: string;
               fallbackPrompt: string;
@@ -1739,6 +1749,7 @@ declare namespace App {
             field: {
               systemPrompt: string;
               modelId: string;
+              routingStrongModelId: string;
               webSearch: string;
               fetchUrl: string;
             };

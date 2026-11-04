@@ -1,17 +1,13 @@
 <script setup lang="ts">
 /**
- * 智能体配置面板（#69，#65 技能域 T3）——NTabs 单座签内容：上半编辑卡＋下半留痕时间线卡。
+ * 智能体配置面板（#69 初建；#91 主/强档双下拉）——单座编辑卡＋留痕时间线卡。
  *
- * 编辑卡：systemPrompt NTextarea＋modelId NInput 手输（契约无白名单——错值靠留痕回滚兜底）；
- * 覆盖标记「已覆盖/默认」tag＋回落提示短句（prompt 默认值经「查看默认」弹层看全文）；清空字段提交＝清覆盖回落默认（契约全量终态：
- * null/纯空白即回落），不加「恢复默认」专用按钮。保存四字段全量回传——webSearch/fetchUrl
- * 两 flag 以 GET 回显原值透传（契约「缺省＝true 开」，防静默误开）；成功 toast＋回读刷新，
- * 失败走 onError 透传 toast、表单保留可修正重试。
+ * systemPrompt 用 NTextarea；modelId/routingStrongModelId 共用档位下拉（页面级清单），
+ * 覆盖标记「已覆盖/默认」＋默认预览；清空提交＝清覆盖回落默认。保存五字段全量回传——
+ * webSearch/fetchUrl 两 flag 以 GET 原值透传；失败走 onError 透传 toast、表单保留。
  *
- * 留痕时间线：服务端 operatedAt 倒序如实渲染，条目**只渲染变化项**（old/new 四件对中
- * old≠new 的字段；null 显「（默认）」）；条目「回滚」＝$dialog.warning 确认后把该次变更前
- * old* 四值 PUT 写回（＝一次新变更、将留新痕——provider 无专用回滚端点）→ toast＋编辑卡/
- * 时间线刷新。
+ * 留痕只渲染 old≠new 的五件变化项（null 显「（默认）」）；回滚＝确认后 old 五值 PUT
+ * 写回（一次新变更、留新痕）→ toast＋双卡刷新。
  */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { AGENT_CONFIG_UPDATE_AUTH, agentKeyLabel } from '@/constants/aiplatform';
@@ -23,12 +19,16 @@ import {
 import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
 import { formatDateTime } from '@/utils/common';
+import ModelTierSelect from './model-tier-select.vue';
 
 defineOptions({ name: 'AgentConfigPanel' });
 
 const props = defineProps<{
   /** 配置座稳定键（路径段寻址；签 label 由父页 tab 承载，toast 插值用 agentKeyLabel）。 */
   agentKey: Api.Aiplatform.AgentKey;
+  /** 页面级共享档位清单（本 panel 不重复拉取）。 */
+  modelTiers: Api.Aiplatform.ModelTier[];
+  tierLoading?: boolean;
 }>();
 
 const { hasAuth } = useAuth();
@@ -39,7 +39,11 @@ const config = ref<Api.Aiplatform.AgentConfig | null>(null);
 const traces = ref<Api.Aiplatform.AgentConfigTrace[]>([]);
 
 /** 编辑态（生效值直灌——未覆盖时即默认原文，清空提交＝回落）；保存按原样透传（契约收纯空白＝清覆盖）。 */
-const form = reactive({ systemPrompt: '', modelId: '' });
+const form = reactive<{ systemPrompt: string; modelId: string | null; routingStrongModelId: string | null }>({
+  systemPrompt: '',
+  modelId: '',
+  routingStrongModelId: ''
+});
 
 /** 卡片题（读面到手直读 agentName；在途回落端侧映射——签 label 同源）。 */
 const panelTitle = computed(() => config.value?.agentName ?? $t(agentKeyLabel[props.agentKey]));
@@ -55,12 +59,13 @@ async function load() {
     config.value = configRes.data;
     form.systemPrompt = configRes.data.systemPrompt;
     form.modelId = configRes.data.modelId;
+    form.routingStrongModelId = configRes.data.routingStrongModelId;
   }
   if (!tracesRes.error) traces.value = tracesRes.data ?? [];
   loading.value = false;
 }
 
-/** 保存（全量四字段回传）：PUT → toast（座名插值）→ 回读刷新（编辑卡＋时间线一起）。 */
+/** 保存（全量五字段回传）：PUT → toast（座名插值）→ 回读刷新（编辑卡＋时间线一起）。 */
 async function handleSave() {
   saving.value = true;
   const { error: err } = await fetchUpdateAiplatformAgentConfig(props.agentKey, {
@@ -68,7 +73,8 @@ async function handleSave() {
     modelId: form.modelId,
     // 两 flag 原值透传（防静默误开）；config 表单不动开关——开关走工具面 tool 端点
     webSearchEnabled: config.value!.webSearchEnabled,
-    fetchUrlEnabled: config.value!.fetchUrlEnabled
+    fetchUrlEnabled: config.value!.fetchUrlEnabled,
+    routingStrongModelId: form.routingStrongModelId
   });
   saving.value = false;
   if (!err) {
@@ -77,8 +83,8 @@ async function handleSave() {
   }
 }
 
-/** 留痕值面四件键（old/new 对的字段名——变化项投影与 label 映射共用）。 */
-type TraceFieldKey = 'systemPrompt' | 'modelId' | 'webSearchEnabled' | 'fetchUrlEnabled';
+/** 留痕值面五件键（old/new 对的字段名——变化项投影与 label 映射共用）。 */
+type TraceFieldKey = 'systemPrompt' | 'modelId' | 'routingStrongModelId' | 'webSearchEnabled' | 'fetchUrlEnabled';
 
 interface TraceFieldChange {
   key: TraceFieldKey;
@@ -90,6 +96,7 @@ interface TraceFieldChange {
 const FIELD_LABEL: Record<TraceFieldKey, App.I18n.I18nKey> = {
   systemPrompt: 'page.aiplatform.agentConfig.field.systemPrompt',
   modelId: 'page.aiplatform.agentConfig.field.modelId',
+  routingStrongModelId: 'page.aiplatform.agentConfig.field.routingStrongModelId',
   webSearchEnabled: 'page.aiplatform.agentConfig.field.webSearch',
   fetchUrlEnabled: 'page.aiplatform.agentConfig.field.fetchUrl'
 };
@@ -98,6 +105,7 @@ function changedFields(trace: Api.Aiplatform.AgentConfigTrace): TraceFieldChange
   const pairs: TraceFieldChange[] = [
     { key: 'systemPrompt', from: trace.oldSystemPrompt, to: trace.newSystemPrompt },
     { key: 'modelId', from: trace.oldModelId, to: trace.newModelId },
+    { key: 'routingStrongModelId', from: trace.oldRoutingStrongModelId, to: trace.newRoutingStrongModelId },
     { key: 'webSearchEnabled', from: trace.oldWebSearchEnabled, to: trace.newWebSearchEnabled },
     { key: 'fetchUrlEnabled', from: trace.oldFetchUrlEnabled, to: trace.newFetchUrlEnabled }
   ];
@@ -111,7 +119,7 @@ function formatFieldValue(value: string | boolean | null): string {
   return value;
 }
 
-/** 回滚＝把该次变更前 old* 四值快照 PUT 写回（一次新变更、将留新痕）→ toast＋双卡刷新。 */
+/** 回滚＝把该次变更前 old 五值快照 PUT 写回（一次新变更、将留新痕）→ toast＋双卡刷新。 */
 function handleRollback(trace: Api.Aiplatform.AgentConfigTrace) {
   window.$dialog?.warning({
     title: $t('page.aiplatform.agentConfig.traces.rollbackTitle'),
@@ -123,7 +131,8 @@ function handleRollback(trace: Api.Aiplatform.AgentConfigTrace) {
         systemPrompt: trace.oldSystemPrompt,
         modelId: trace.oldModelId,
         webSearchEnabled: trace.oldWebSearchEnabled,
-        fetchUrlEnabled: trace.oldFetchUrlEnabled
+        fetchUrlEnabled: trace.oldFetchUrlEnabled,
+        routingStrongModelId: trace.oldRoutingStrongModelId
       });
       if (!err) {
         window.$message?.success($t('page.aiplatform.agentConfig.traces.rolledBack'));
@@ -194,9 +203,25 @@ onMounted(load);
               </span>
             </template>
             <div class="w-full flex-col-stretch gap-4px">
-              <NInput v-model:value="form.modelId" :placeholder="$t('page.aiplatform.agentConfig.edit.modelIdPlaceholder')" />
+              <ModelTierSelect v-model:value="form.modelId" :tiers="modelTiers" :loading="tierLoading" />
               <div class="text-12px text-gray-400">
                 {{ $t('page.aiplatform.agentConfig.edit.fallbackModel', { model: config.defaultModelId }) }}
+              </div>
+            </div>
+          </NFormItem>
+          <NFormItem>
+            <template #label>
+              <span class="flex items-center gap-8px">
+                {{ $t('page.aiplatform.agentConfig.edit.routingStrongModelId') }}
+                <NTag size="small" :type="config.routingStrongModelIdOverridden ? 'warning' : 'default'">
+                  {{ $t(config.routingStrongModelIdOverridden ? 'page.aiplatform.agentConfig.edit.overridden' : 'page.aiplatform.agentConfig.edit.defaultTag') }}
+                </NTag>
+              </span>
+            </template>
+            <div class="w-full flex-col-stretch gap-4px">
+              <ModelTierSelect v-model:value="form.routingStrongModelId" :tiers="modelTiers" :loading="tierLoading" />
+              <div class="text-12px text-gray-400">
+                {{ $t('page.aiplatform.agentConfig.edit.fallbackModel', { model: config.defaultRoutingStrongModelId }) }}
               </div>
             </div>
           </NFormItem>

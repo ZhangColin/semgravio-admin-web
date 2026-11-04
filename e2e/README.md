@@ -1,4 +1,4 @@
-# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域、#90 扩模型档位域）
+# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域、#90 扩模型档位域、#91 扩智能体配置档位化）
 
 headless Chrome（`playwright-core` 系统 channel，**免下载浏览器**）+ `page.route` 全量 mock。
 mock fixtures 的字段形状**派生自 admin :8081 `/v3/api-docs`**（各域 `support/*-fixtures.mjs` 头注释标明
@@ -54,11 +54,12 @@ e2e/
                            SKILL_ASSIGNMENTS 三槽初始指派——PUT 整包替换就地变异；#72 预检态
                            SKILL_PRECHECK（mode overlap/clean/notExecuted 三态切换＋delayMs 判定
                            延迟；PRECHECK_HINTS 两样本＝四字段全＋三 null「—」占位靶）只读不变异；
-                           #69 智能体配置
-                           AGENT_CONFIGS 两座（main 双覆盖靶/executor 全默认靶）＋AGENT_TRACES
-                           （变化项过滤＋「（默认）」靶）＋AGENT_TOOL_SLOTS 三槽——工具开关窄幅写口
-                           挂 main 行开关列（provider toggleTool 镜像），main 槽增强件挂载态由
-                           harness 按 main 配置 flag 派生（同源不漂移））
+                           #69/#91 智能体配置
+                           AGENT_CONFIGS 三座（main 三覆盖且主档停用/executor、designer 全默认）
+                           ＋AGENT_TRACES（强档变化项过滤＋「（默认）」靶）＋EDGE_CONFIGS/
+                           EDGE_TRACES 四点（naming 覆盖、其余默认）＋AGENT_TOOL_SLOTS 三槽——
+                           工具开关窄幅写口挂 main 行开关列，main 槽增强件挂载态由 harness 按
+                           main 配置 flag 派生（同源不漂移））
   material.e2e.mjs        素材域验收流（清单契约字段（kind 裸值 + operator 两列）/status 单选·沉淀
                            时间闭区间（Instant UTC）·projectId 精确过滤/分页 1-based/详情抽屉（元数据 +
                            content 全文）/停用⇄启用按状态门控切换（抽屉 reload 二次回读——回执 summary
@@ -76,12 +77,11 @@ e2e/
                            overlap 逐条四字段＋null「—」占位/非阻断（hints 非空保存照常 PUT＋
                            预检失败不阻塞）/stale 保留＋标注＋复原消解/notExecuted 降级态不伪装
                            成无重叠（cssVars 背景色三态互异）/clean/切签结果随面板丢弃）
-  agent-config.e2e.mjs    智能体配置验收流（#69：两座编辑卡（覆盖标记＋默认预览＋生效值预填）/
-                           保存 PUT 四字段全量回传（两 flag 以 GET 原值透传防静默误开）＋清空回落
-                           ＋标记复位/留痕时间线（倒序＋只渲染变化项＋null 显「（默认）」）/回滚
-                           （$dialog 确认→old 四值 PUT 写回＝留新痕→双卡刷新）/工具面三槽位块
-                           （slotName 直读＋kind 三值映射＋骨架/内建 disabled 恒开）/增强工具受控
-                           开关即时 PUT＋失败回滚/失败透传 toast（400 PRJ_034＋403 PRJ_036））
+  agent-config.e2e.mjs    智能体配置验收流（#69/#91：三座主/强档双档位下拉＋页面级一次
+                           档位清单/停用档不可选＋已绑定停用警示/保存与回滚恰好五字段（两 flag
+                           原值透传）＋清空回落＋强档留痕/边缘四点合一签（read 码门控＋窄面板
+                           仅 modelId＋留痕收起＋清空回落 flash）/工具面三槽位块＋增强工具受控
+                           开关即时 PUT＋失败回滚/失败透传 toast（PRJ_034/074/075＋PRJ_036））
   contract.e2e.mjs        合同域验收流（#87 A 批 T1：清单契约字段（contractNo/id/orderId mono＋
                            statusName tag＋version＋金额分格式化）/四维筛选（status 多选逗号＋
                            createdFrom·To＋orderId/contractNo 精确）/分页 1-based/详情抽屉 720

@@ -1489,21 +1489,31 @@ const local: App.I18n.Schema = {
           resolution: 'Resolution'
         }
       },
-      /** Agent config page (#69 — skill-line agent-configs 3 + agent-tools 2 endpoints; two agent edit cards + trace timeline + tool inventory). */
+      /** Agent config page (#69; #91 adds three agents, dual tiers, four edge points and tools). */
       agentConfig: {
         title: 'Agent Config',
         tab: {
-          tools: 'Tools'
+          tools: 'Tools',
+          edge: 'Edge Calls'
         },
         agent: {
           main: 'Main Agent',
-          executor: 'Run Executor'
+          executor: 'Run Executor',
+          designer: 'Design Executor'
+        },
+        edge: {
+          naming: 'Project Naming',
+          compaction: 'Context Compaction',
+          classification: 'Entry Classification',
+          precheck: 'Skill Precheck'
         },
         edit: {
           systemPrompt: 'System Prompt',
           systemPromptPlaceholder: 'Empty = fall back to default (override cleared)',
           modelId: 'Model Tier',
-          modelIdPlaceholder: 'Model tier name (e.g. deepseek-v4-pro; no whitelist — wrong values are rolled back via traces)',
+          routingStrongModelId: 'Routing Strong Tier',
+          modelIdPlaceholder: 'Select a model tier; clear and save to use the default',
+          tierDisabled: 'Disabled',
           overridden: 'Overridden',
           defaultTag: 'Default',
           fallbackPrompt: 'Clear & save to fall back to the default prompt',
@@ -1524,6 +1534,7 @@ const local: App.I18n.Schema = {
         field: {
           systemPrompt: 'System Prompt',
           modelId: 'Model Tier',
+          routingStrongModelId: 'Routing Strong Tier',
           webSearch: 'Web Search',
           fetchUrl: 'Fetch URL'
         },
