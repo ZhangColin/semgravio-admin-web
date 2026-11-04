@@ -14,3 +14,5 @@
 "*.sh"     eol=lf
 Dockerfile eol=lf
 "*.template" eol=lf
+# nginx 配置：CRLF 会炸容器内 nginx（#94 已踩）；共享 conf 与前端模板同钉 LF
+"*.conf"   eol=lf

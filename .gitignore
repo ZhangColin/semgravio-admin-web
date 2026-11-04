@@ -39,3 +39,10 @@ src-tauri/target
 .next/
 *.tsbuildinfo
 .gstack/
+
+# 部署（#95）：服务器环境值与证书/私钥永不入仓——只入 .env.production.example 模板与
+# certs/ 目录约定（文件名 fullchain.pem / privkey.pem，由服务器侧安放）
+.env.production
+!*.example
+certs/
+*.pem

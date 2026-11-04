@@ -1,78 +1,46 @@
-#!/bin/bash
-# 管理后台前端 - 生产环境部署脚本
-# 使用方法: ./deploy.sh
+#!/usr/bin/env bash
+# 服务器运维小工具（semgravio-eu-1；连接参数与 publish.sh 同套默认，可同法覆盖；
+# 本脚本只在本地拼命令，docker 一律在服务器侧执行）：
+#   ./deploy.sh status   容器概览（semgravio-admin-web ＋ semgravio-nginx）
+#   ./deploy.sh logs     跟应用容器日志（semgravio-admin-web）
+#   ./deploy.sh restart  重启应用容器（不重建镜像、不动共享 nginx 配置，秒级；
+#                        nginx 配置/证书更新统一走 publish.sh 发布门禁）
+#   ./deploy.sh smoke    HTTPS 冒烟（HTTP→HTTPS 跳转 / HTTPS 首页 200 / 未登录当前用户 401；
+#                        与 publish.sh 同一脚本 deploy/smoke-remote.sh，断言只维护一份）
+#   ./deploy.sh sh       登服务器交互 shell
+# 未知子命令打印本用法并以 64 退出；help/无参打印用法并以 0 退出。
+# 换版上线（打包＋上传＋构建＋门禁安装）不是这里，用 ./publish.sh。
+set -euo pipefail
+cd "$(dirname "$0")"
 
-set -e
+SERVER_HOST="${SERVER_HOST:-3.70.172.160}"
+SERVER_USER="${SERVER_USER:-ubuntu}"
+SSH_KEY="${SSH_KEY:-$HOME/ssh/semgravio-eu-1.pem}"
+REMOTE="${SERVER_USER}@${SERVER_HOST}"
+SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes "$REMOTE")
 
-# 颜色输出
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-COMPOSE="docker-compose -f docker-compose.prod.yml --env-file .env.production"
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}   管理后台前端 - 生产环境部署${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-
-# 检查环境配置
-if [ ! -f .env.production ]; then
-  echo -e "${RED}错误: 未找到 .env.production${NC}"
-  exit 1
-fi
-echo -e "${BLUE}✓ 读取 .env.production${NC}"
-echo ""
-
-# 停止旧容器
-echo -e "${YELLOW}停止旧容器...${NC}"
-$COMPOSE down 2>/dev/null || true
-
-# 构建镜像
-echo -e "${YELLOW}构建镜像...${NC}"
-$COMPOSE build
-
-# 启动新容器
-echo -e "${YELLOW}启动服务...${NC}"
-$COMPOSE up -d
-
-# 等待容器启动
-echo -e "${YELLOW}等待服务启动...${NC}"
-sleep 15
-
-# 通过 docker 检查容器健康状态
-if docker inspect --format='{{.State.Health.Status}}' semgravio-admin-web 2>/dev/null | grep -q healthy; then
-  echo ""
-  echo -e "${GREEN}========================================${NC}"
-  echo -e "${GREEN}   ✓ 服务已启动 (healthy)${NC}"
-  echo -e "${GREEN}========================================${NC}"
-  echo ""
-  echo "常用命令："
-  echo "  查看日志: docker logs -f semgravio-admin-web"
-  echo "  停止服务: $COMPOSE down"
-  echo "  重启服务: $COMPOSE restart"
-  echo ""
-else
-  # 容器可能还在启动中，再等一会
-  echo -e "${YELLOW}⚠ 等待健康检查...${NC}"
-  sleep 20
-  if docker inspect --format='{{.State.Health.Status}}' semgravio-admin-web 2>/dev/null | grep -q healthy; then
-    echo ""
-    echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}   ✓ 服务已启动 (healthy)${NC}"
-    echo -e "${GREEN}========================================${NC}"
-    echo ""
-    echo "常用命令："
-    echo "  查看日志: docker logs -f semgravio-admin-web"
-    echo "  停止服务: $COMPOSE down"
-    echo "  重启服务: $COMPOSE restart"
-    echo ""
-  else
-    echo -e "${RED}✗ 服务未就绪${NC}"
-    echo -e "${YELLOW}  状态: $(docker inspect --format='{{.State.Health.Status}}' semgravio-admin-web 2>/dev/null || echo '未知')${NC}"
-    echo -e "${YELLOW}  查看日志: docker logs semgravio-admin-web${NC}"
-    exit 1
-  fi
-fi
+case "${1:-help}" in
+  status)
+    "${SSH[@]}" "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep -E 'semgravio-admin-web|semgravio-nginx' || true"
+    ;;
+  logs)
+    exec "${SSH[@]}" "docker logs -f --tail 200 semgravio-admin-web"
+    ;;
+  restart)
+    "${SSH[@]}" 'docker restart semgravio-admin-web >/dev/null && echo 已重启 semgravio-admin-web（nginx 配置热更走 publish.sh 门禁，无须重启）'
+    ;;
+  smoke)
+    "${SSH[@]}" 'bash -s' < deploy/smoke-remote.sh
+    ;;
+  sh)
+    exec "${SSH[@]}"
+    ;;
+  help)
+    grep '^# ' "$0" | tail -n +2
+    ;;
+  *)
+    grep '^# ' "$0" | tail -n +2 >&2
+    echo "未知子命令：${1:-}（退出码 64）" >&2
+    exit 64
+    ;;
+esac

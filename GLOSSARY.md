@@ -162,6 +162,28 @@ admin-web 具备可部署生产形态。**只写部署物 + 静态契约检查�
 - **服务器 env 模板** = `.env.production.example`（`cp` 成 `.env.production` 后 `--env-file` 引用；只含非秘密拓扑变量）。`.dockerignore` 排 `dist`/`e2e`/`.env*`，**但 `!.env`/`!.env.prod` 必须放行**——vite `--mode prod` 构建期加载它们（`.env` 的 `VITE_BASE_URL` 等 + `.env.prod` 的 `/api/admin`），排除掉会让镜像产物 baseURL 为空（#94 review 抓出的真 bug）。`.gitattributes` 补 `*.sh`/`Dockerfile`/`*.template` `eol=lf`（CRLF 会炸容器内 `/bin/sh` 与 nginx 配置）。
 - **静态契约检查** = `deploy/validate.sh`（`bash deploy/validate.sh`，只读仓库文件）：A 基础地址 / B 多阶段镜像 / C compose 编排 / D nginx 回退与代理 / E 注入脚本守卫 / F env 模板 / G 全部 shell `bash -n`。后续改部署物跑它回归。
 
+### 2026-11-04 一键 HTTPS 发布链路（#95，承接 #94 部署物）
+
+admin-web 发布链路齐备。**本票只写脚本/配置/文档 + 静态验证，未上传、未构建、未起栈、未装 nginx 配置**；首次真实发布等用户确认（`BACKEND_URL` 真实值亦待用户提供）。
+
+- **一键发布 = 根 `publish.sh`**（重写 legacy 明文密码脚本，旧脚本随旧 Next 形态整体作废）：阶段 `== 0..5/6 ==` 任败即非零退出——本地密钥 → SSH 连通 → **远端前置**（semgravio-nginx 健康 / webnet / `~/semgravio-admin-web/.env.production` 的 BACKEND_URL 源站口径 / `certs/fullchain.pem`+`privkey.pem` / 门禁脚本在场；**在上传与构建之前**，缺项零改动）→ 打包 → scp → 远端解包 → `compose up -d --build` → 门禁安装 → 就绪等待 → 冒烟。
+- **打包 = `deploy/build-bundle.sh`**：同 aiplatform 模式——`git archive HEAD`（恒 LF、跨 Windows Git Bash）、`REVISION` 记录 HEAD、脏工作区默认拒绝（`ALLOW_DIRTY=1` 逃生＋醒目警告）、秘密值排除断言（`.env.production`/`certs/`/`*.pem` 命中即中止）；产物 `dist/admin-web-deploy-<戳>.tar.gz`，末行打印包路径（`publish.sh` 约定）。开发机零构建依赖——pnpm 安装与 vite build 都在服务器侧多阶段镜像里跑。
+- **共享 nginx 接入 = `deploy/nginx/admin-web.conf`**：80 `return 301 https://$host$request_uri;`；443 TLS（证书引用门禁安装路径 `/etc/nginx/certs/admin-web/{fullchain,privkey}.pem`）；代理 `semgravio-admin-web:80` 变量形式 + `resolver 127.0.0.11 valid=5s`（infra nginx 1.30 支持同 http 块多 resolver，与 aiplatform.conf 各声明各的）；Host/X-Real-IP/X-Forwarded-For/X-Forwarded-Proto 全传递；不声明 default_server、server_name 单行（门禁契约）。安装唯一通道 = infra 门禁 `install-nginx-conf.sh admin-web <conf> <certs 目录>`（撞车即拒/语法门禁/失败回滚，conf.d 挂载热更）。**首个 TLS 接入服务**（aiplatform 只 listen 80）。
+- **冒烟断言（如实报告实际码）**：HTTP `/` = 301 且 Location 指 https；HTTPS `/` = 200；未登录 `GET /api/admin/auth/current` = **401**（正向鉴权证据，其他值一律判失败）。
+- **运维入口 = 根 `deploy.sh`**（重写 legacy）：`status/logs/restart/smoke/sh` 子命令（restart 不重建镜像；nginx 配置更新统一走发布门禁）。连接参数与 `publish.sh` 同套默认（`ubuntu@3.70.172.160` + `semgravio-eu-1.pem`），`SERVER_HOST/SERVER_USER/SSH_KEY/REMOTE_DIR/INFRA_DIR` 可覆盖。
+- **复用包发布** `SKIP_BUILD=1 ./publish.sh`（取 `dist/` 最新包）；**解包不覆盖现网输入**（git archive 产物天然无 env/证书 + 解包后三项现网输入复核）。
+- **部署文档 = `docs/deploy/部署文档.md`**（中文）：角色与目录 / 服务器前置输入 / 一键发布 / 幂等与边界 / 运维 / 静态验证 / 换证书；明确区分「静态验证零副作用」与「真实发布须用户确认」。
+
+### 2026-11-04 运维入口收口 + 中文部署手册（#96，承接 #95 链路）
+
+#95 未提交产物随本票一并落地。**只写脚本/文档 + 静态验证，未执行任何真实服务器操作**。
+
+- **冒烟断言单一事实源 = `deploy/smoke-remote.sh`**：301 跳转 / HTTPS 首页 200 / 未登录 `/api/admin/auth/current` 401 三项外部断言只维护一份——`deploy.sh smoke`（ssh `bash -s` 喂入）与 `publish.sh` 阶段 5（解包后跑同文件）共用。判定面从「localhost + Host 头」改为 **真实 SNI**（`curl --resolve admin.semgravio.com:443:127.0.0.1`）——不再依赖「admin-web 是唯一 443 server 块」的隐式兜底（infra 日后加任何 443 块居先即静默炸 TLS 的隐患，#95 review 抓出）。
+- **运维入口收口**：`deploy.sh` 未知子命令打印用法 + **exit 64**（原 exit 0）；`help`/无参仍 0。restart 语义不变（只重建容器运行状态、不重建镜像；nginx 配置/证书更新统一走 publish.sh 门禁）。
+- **#95 review 修复三处**：① publish.sh 阶段标号 0..5/5（六阶段）→ **/6**；② 阶段 5 信息性 `docker ps | grep` 在 `set -e` 远端 heredoc 里 grep 无匹配会先于冒烟结论中断 → `|| true`；③ `.gitattributes` 补 `*.conf eol=lf`（`admin-web.conf` 裸漏，CRLF 会炸 nginx——#94 条目自己写明过的坑）。
+- **中文手册重写**（`docs/deploy/部署文档.md`）：前置条件（开发机零构建依赖/服务器 infra 已起栈/SSH 默认参数与覆盖）→ 一次性输入（BACKEND_URL 源站口径 + **URI 原样转发示例**、证书 `chmod 600` 权限保护）→ 发布（脏工作区门禁/SKIP_BUILD）→ **首次验收**（冒烟三项 + 深层 history 路由 curl 核验 + 浏览器登录人工步骤如实补记）→ 重复发布/换证书/运维子命令/常见失败排查表。明确：证书、私钥、服务器环境值、**部署包**均不得提交 Git；基础设施不由本仓部署；静态实施与真实发布边界。
+- **静态验证扩 K 节**（#96）：冒烟脚本语法/SNI/三断言、两处共用同一脚本、`exit 64`、conf eol=lf + 无 CRLF、手册逐项覆盖（子命令/chmod 600/URI 示例/深层路由/部署包不入 Git/infra 边界/静真边界）。H 节冒烟断言改指共用脚本。`bash deploy/validate.sh` 全绿（A–K）。
+
 ### 2026-09-16 AI 平台六域页面 grilling（admin-web #56，消费 admin BFF aiplatform 34 端点；后端已就绪 admin#62/#63–73）
 
 admin 仓 aiplatform BFF 已全量落地（`/api/admin/aiplatform/**` 34 端点，忠实透传 provider `/api/backoffice/**`），菜单 V15 已种、前端无页。本票 grill 拍板 UI 形态与联调口径，逐域按 matt 流程拆票实现（不分批）。
