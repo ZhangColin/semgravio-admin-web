@@ -1267,7 +1267,7 @@ export async function installAiplatformMocks(page, fixtures) {
                   id: '240',
                   menuName: '智能体配置',
                   routeName: 'aiplatform_agent_config',
-                  routePath: '/aiplatform/agent-config',
+                  routePath: '/aiplatform/agent/config',
                   component: 'view.aiplatform_agent_config',
                   icon: 'carbon:prompt-session',
                   iconType: 1,

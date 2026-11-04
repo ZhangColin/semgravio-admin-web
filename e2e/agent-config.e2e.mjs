@@ -90,9 +90,9 @@ async function main() {
   const menuItemTexts = await page.locator('[role=menuitem], [role=treeitem]').allTextContents();
   h.check('侧栏渲染「智能体配置」叶子（动态菜单 240）', menuItemTexts.some(t => t.includes('智能体配置')));
   // 菜单→路由跳转与 addRoute 时序竞态（#58 坑与定案）——直达 URL 规避
-  await page.goto(`${BASE}/aiplatform/agent-config`);
+  await page.goto(`${BASE}/aiplatform/agent/config`);
   await page.locator('.n-timeline-item').first().waitFor({ timeout: 15000 });
-  h.check('落 /aiplatform/agent-config 且 main 座读面渲染', page.url().includes('/aiplatform/agent-config'));
+  h.check('落 /aiplatform/agent/config（V19 真库种子路径）且 main 座读面渲染', page.url().includes('/aiplatform/agent/config'));
   h.check('进入即加载 GET /agent-configs/main ＋ /traces', configGetCount(calls, 'main') >= 1);
   h.check('档位清单页面级拉一次', calls.filter(c => c.method === 'GET' && c.path === '/aiplatform/model-tiers').length === 1);
 
