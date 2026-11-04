@@ -129,7 +129,7 @@
 - **`MenuResponse`**(树): `id name path icon parentId sortOrder children[]` — ⚠️ **无 `type` 字段**，前端无法直接区分菜单/分组/分隔线
 - **`RoleResponse`**: `id name code description sortOrder menuIds(Set) permissionCodes(Set)`
 - **`PermissionResponse`**: `code name`
-- 登录体 `AdminUserLoginCommand`: `{ username, password, rememberMe }`；内置超管 `admin / Hcy@2026`(id=1, 破窗号)
+- 登录体 `AdminUserLoginCommand`: `{ username, password, rememberMe }`；内置超管 `admin / A1@truth`(id=1, 破窗号——V2 种子注释正本；2026-11-04 联调实测 `Hcy@2026` 旧口径已失效)
 
 ### ⚠️ 后端**尚未提供**的接口
 部门(department)、岗位(position)、财务(finance)、Dashboard 聚合数据、`/auth/captcha`（在放行名单但无实现）。
@@ -471,6 +471,22 @@ mock E2E（production-handoff **24/24 两轮全绿**＋order **52/52 两轮全�
 - **上游读面缺口（如实降级，不伪造端点）**：① admin/provider HEAD 的订单详情 DTO 均不带 prdVersionNo/demoVersionNo（admin#108 明确双版本仅镜像到 `OrderResponse`），故详情 typings 将两字段标可选、null/缺省显「—」；E2E 按当前真实详情契约断言「—」，双版本仅保留在 scope 写回执 fixture，不能再伪造详情字段制造假绿。② `AiplatformProductionHandoffResponse` 不含 needsUserSupplement（布尔在项目聚合读面），开关以 null 明示「当前状态未随承接读面下发」，已确认目标值提升到项目抽屉、跨切签保留；重开抽屉仍回未知，不能声称恢复真实盖帽状态。两项均需后端补读面或母票 #79 联调时定案。
 - **E2E**：production-handoff-fixtures 两项目覆盖两态、四段有值/全 null、创建/推进/信息更新留痕；harness 对 update/advance 就地追加留痕并回完整 detail，supplement 回 null；订单 scope mock 就地改详情三段并支持 5033 失败注入，取消注入 5047 钉住原文透传。词表新语义与 ORD_047 指引本轮仅以 admin/provider 源码核实＋mock 验证，未启动真实后端，真链收口仍归 #79。
 - **code-review 修正（双轴 review，紧随本票）**：① 删除订单详情 fixture 伪造的 prdVersionNo/demoVersionNo，断言改为 admin HEAD 真实契约下的「—」（Standards/Spec 同指假绿）；② supplement 布尔改三态 `boolean|null`，null 明示读面未知，已确认值 v-model 提升父抽屉跨切签保留并新增重挂断言；③ `trimmedOrNull` 五份拷贝收编 utils/common（合同/通道/档位存量三处顺路迁移）；④ e2e/README 补生产承接流与 fixtures 条目。上游两项读面缺口仍记录在案，不以 mock 冒充已闭环。
+
+### 2026-11-04 #79/#80 联调收口：A 批＋B 批真实链全量走查通过 ✅（admin-web :3001 → admin :8081 → aiplatform :8888——A 批 19＋B 批 16 端点全触达，母票 #79/#80 收口）
+
+**链路环境新事实**：真链四件套＝admin :8081（宿主 java）＋ aiplatform provider :8888＋**app-registry :8088（必须起着——provider 入站验签 `X-Api-Key` 经 `RemoteApiKeyProvider` 查 app-registry `/api/app-registry/api-keys/{key}`，缺它全 aiplatform 面 401「Invalid app key」；Caffeine 缓存按访问过期，短期掉线不即刻断链）**＋共享 PG `aiplatform-pg`（admin 用 `semgravio` 库、provider 用 `aiplatform` 库，同实例 5432）。provider 验签三件套外还有 nonce/时间戳/body-digest（cartisan-openapi `SignatureVerificationFilter`）——admin 侧自动签名，前端零感知。
+
+**收域标准对照（#56 四项）**：① 域内全端点 happy path ✅——A 批 19/19（合同九写含六态全走：创建→record 重录→双签→推进 1→2→3→4；付款五：计划读/节点整组/部分核验/全额核验/打回；生产四：系统建档读/整组更新/推进/盖帽；订单 scope）＋B 批 16/16（通道 CRUD/留痕/远端清单、档位 CRUD/留痕、edge 四键读写留痕）；② 写留痕落库 ✅——合同 transitions/付款 trails/承接 transitions/通道·档位 traces 的 operator 均「超级管理员」（X-User 头透传），承接创建行 operatorId=system（系统建档）；③ 分页/过滤边界＋错误族 ✅——合同清单 1-based page=2 size=2/超总页空/查无空 200、四维过滤全中；业务码 27 枚实码命中（ORD 5021/5024/5025/5026/5027/5028/5033/5037/5038/5042/5044/5045/5005；PRJ 4056/4064–4077）——含 **5044 重录窗口关、5038 非待核验态拒（前端按节点 4 态门控按钮的 wire 依据）、4075 停用档写口拒、4072/4073 引用删除守卫（边缘真绑定 409 实证）**；④ 签名负例属 admin↔aiplatform 机机面（admin 仓执行）——全链成功即正向证据（#65 口径）。
+
+**造数策略（联调时定，单订单全生命周期）**：唯一订单 375906742886750614（语义引力官网）走完 **1→2→3→4 全生命周期**——报价 ¥1000 → scope 三段 → 合同五份（fail/withdraw/void 三终态 + 双签推进签署完成主链 + 已支付后重建 5021 守卫观察）→ 付款两节点（首付开工门部分 ¥200→补足 ¥300 自动转已到账；尾款打回）→ 订单 3（已支付＝开工条件满足双门禁，paidAt 落定）→ retry-archive 手动归档 4。**两处触发源缺失以 DB 置位模拟（#52 先例）**：节点入 4 态（线下转账待核验）——管理面无入口，`UPDATE ord_payment_nodes SET status=4`（aiplatform 库）模拟用户侧 submitVoucher，核验链路本身全真。UI 真链走查 **33/33**（真登录/动态菜单 V22+V23 叶/合同页四行/订单抽屉两签·¥1,000.00 千分位/生产承接签·含 NEmpty 空态分支——四个同名「语义引力官网」项目误开其一，反而实证空态；B 批：掩码 ****66e1/真拉火山方舟 55 条对照 drawer/种子三档/三座＋边缘四点签）。
+
+**真 bug（provider，aiplatform 仓）**：`BackofficeContractQuery` 构造器 `contractNo != null && isBlank() ? null : trim()`——null 时走 else 直接 NPE，**GET /contracts 不带 contractNo（默认清单）必 500**。已提 [aiplatform#389](https://github.com/ZhangColin/aiplatform/issues/389)（含一行修法建议；跨仓不动代码，修复归该仓定夺）。mock E2E 不可能发现（page.route 不经 provider）——联调收口的存在意义实证。
+
+**契约事实与发现**：① **PUT 通道/档位＝全量终态替换**：partial PUT（只传 enabled/displayName）400 4069/4070（baseUrl/providerKey+modelName 必填）——#80 票面 `{providerKey?, ...}` 可选标记与 wire 不符（前端本就全量回传，零影响；档位停用须携全肢＋enabled:false）；② **edge 读面 modelId 是生效值**（覆盖值回落缺省后回显 flash 等，`modelIdOverridden` 区分真绑定）——删除守卫只认真绑定，四点全回落态时删 flash 合法放行（联调曾误删种子档，按 V44 种子值重建、边缘清回，终态 2 通道 3 档原样）；③ 词表 wire 名 3=「已支付」（枚举注释明示语义＝开工条件满足双门禁，UI 直读零改 standing decision 不变——语义由转换时点实证：合同签署完成后单据仍 2，开工门全额到账瞬间转 3）；④ 远端清单真拉无缓存（55 条、staleTiers 对照、上游 status 原文透传），假 baseUrl → 502 4077 明确报错；⑤ apiKey 全链掩码铁律实证（明文只在写口出现一次，回执/读面/留痕恒 `****尾4`）；⑥ mock e2e menus fixture 的 agent-config 路径与真库 V19 种子漂移（`agent-config` vs `agent/config`）——mock-only，真链不受影响，fixture 待顺路校正。
+
+**读面缺口定案（#92 记录在案两项，联调实证后提 admin 仓票）**：① 订单详情不带 prdVersionNo/demoVersionNo（仅 OrderResponse 写回执有）→ 前端「—」降级呈现维持 → [admin#120](https://github.com/ZhangColin/semgravio-admin/issues/120)；② **needsUserSupplement 在 admin BFF 任何可达读面均缺席**（项目聚合/订单详情/承接读面都无）→ 前端三态开关恒 null「未知」，**盖帽动作可写不可读** → [admin#119](https://github.com/ZhangColin/semgravio-admin/issues/119)（优先级更高——交互盲写 vs 展示完整性）。两项均后端读面增量，前端零改（降级形态已按 wire 事实实现）。
+
+**观察限制（如实记录）**：needsUpdate=true 真链不可达——单订单造数下「草稿窗内改价」与「开工门全额到账推 3」互斥（派生逻辑归 provider 测试面，前端 tag 渲染已由 mock E2E 钉）；ORD_047（5047）专属窗口（已签署未支付）已过，终态实证 5005 先到先得、5047 文案以 provider 源码＋mock 钉住。
 
 ### 2026-09-17 T7 交付：素材域点亮 ✅（#63，六域之七——清单 + 详情抽屉（PRD 全文）+ 停用⇄启用 + 删除）
 

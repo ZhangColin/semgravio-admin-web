@@ -51,7 +51,7 @@ Single-context — one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/a
 - 鉴权链路：`/auth/login` 取 token（`localStg` 存）→ `/auth/current` 取 `{user,roleCodes,permissions,menus}` → 映射进 auth store；路由守卫在 `router.beforeEach`（`src/router/guard/route.ts`）读 token 判登录。
 - 新页（部门/岗位/财务视图）跟 admin 后端新增同步。
 
-当前进度（Soybean 重写后）：T1 登录闭环已打通（#12 / commit `73f1643`）；T2 用户管理页已打通（tracer bullet——搬 example 外壳 + 自写 CRUD + 改 defaultTransform，建立整套 CRUD 适配范式，详见 GLOSSARY.md「T2 用户管理页」）；T3 角色管理页已打通（含分配菜单/权限，REQ-7 已修）。**动态菜单 T2 已翻 `VITE_AUTH_ROUTE_MODE=dynamic`**（#22——sidebar 导航由 `GET /menus/my` 驱动，static 代码全保留、翻回 env 即回退；非超管矩阵 + 菜单页 toast = #23）。Dashboard 仍 mock、菜单/部门/岗位/财务未做。
+当前进度（Soybean 重写后）：T1 登录闭环已打通（#12 / commit `73f1643`）；T2 用户管理页已打通（tracer bullet——搬 example 外壳 + 自写 CRUD + 改 defaultTransform，建立整套 CRUD 适配范式，详见 GLOSSARY.md「T2 用户管理页」）；T3 角色管理页已打通（含分配菜单/权限，REQ-7 已修）。**动态菜单 T2 已翻 `VITE_AUTH_ROUTE_MODE=dynamic`**（#22——sidebar 导航由 `GET /menus/my` 驱动，static 代码全保留、翻回 env 即回退；非超管矩阵 + 菜单页 toast = #23）。**aiplatform 域 A 批＋B 批对接已交付并真链联调收口**（#79/#80，2026-11-04——合同六态/付款核验/生产承接/模型通道·档位/智能体配置档位化；mock E2E 全绿＋真链 35 端点全触达＋UI 33/33，详见 GLOSSARY「#79/#80 联调收口」段）。Dashboard 仍 mock、菜单/部门/岗位/财务未做。
 
 深度（平台自带应用定位）：读架构仓库 architecture.md §5.3、CONTEXT.md，以及 admin 后端起步包 docs/starters/admin.md（契约 + 必修 bug）。
 本项目自己的设计演进 → 本项目的 GLOSSARY.md + docs/adr/。
