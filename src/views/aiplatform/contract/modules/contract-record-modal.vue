@@ -11,6 +11,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { NInput, NModal } from 'naive-ui';
 import { fetchRecordAiplatformContract } from '@/service/api';
 import { $t } from '@/locales';
+import { trimmedOrNull } from '@/utils/common';
 
 defineOptions({ name: 'ContractRecordModal' });
 
@@ -54,12 +55,6 @@ watch(visible, val => {
 });
 
 const isValid = computed(() => model.basis.trim().length > 0);
-
-/** 空白归一 null（provider blankToNull 同款——显式传 null 不依赖服务端归一）。 */
-function trimmedOrNull(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
 
 async function handleConfirm() {
   if (!isValid.value || !props.contract) return false;

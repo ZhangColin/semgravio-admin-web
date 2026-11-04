@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 项目详情抽屉（#58/#59，#64 成本指针币种桶点亮）——五 tab：基本信息（订单引用双档/成本指针/工作区引用）/ 对话史 / PRD / 版本 / 交付文件。
+ * 项目详情抽屉（#58/#59，#64 成本指针币种桶点亮，#92 生产承接第六签）——六 tab：基本信息（订单引用双档/成本指针/工作区引用）/ 对话史 / PRD / 版本 / 交付文件 / 生产承接。
  *
  * 项目域纯读、各 tab 数据各自独立端点——除基本信息外均「v-if 按 tab 挂载即加载」
  * （切 tab 卸载重挂，天然重置；抽屉每次打开 activeTab 回 basic）。对话史/PRD/版本/交付文件
@@ -9,13 +9,15 @@
 import { ref, watch } from 'vue';
 import { NTag } from 'naive-ui';
 import { fetchGetAiplatformProject } from '@/service/api';
+import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
-import { projectStatusTagColor, orderStatusTagColor } from '@/constants/aiplatform';
+import { PRODUCTION_READ_AUTH, projectStatusTagColor, orderStatusTagColor } from '@/constants/aiplatform';
 import { formatDateTime } from '@/utils/common';
 import ConversationPane from './conversation-pane.vue';
 import FilesPane from './files-pane.vue';
 import PrdPane from './prd-pane.vue';
 import VersionsPane from './versions-pane.vue';
+import ProductionHandoffPane from './production-handoff-pane.vue';
 import CostBuckets from '../../cost/modules/cost-buckets.vue';
 import AccountProfile from '../../modules/account-profile.vue';
 
@@ -39,12 +41,16 @@ async function loadDetail() {
   if (!error) detail.value = data;
 }
 
-const activeTab = ref<'basic' | 'conversation' | 'prd' | 'versions' | 'files'>('basic');
+const activeTab = ref<'basic' | 'conversation' | 'prd' | 'versions' | 'files' | 'production'>('basic');
+const canReadProduction = useAuth().hasAuth(PRODUCTION_READ_AUTH);
+// 承接读面无盖帽布尔：null＝未知；仅保留本抽屉内已确认目标值，切签重挂不丢。
+const productionSupplementRequired = ref<boolean | null>(null);
 
 watch(visible, val => {
   if (val) {
     detail.value = null;
     activeTab.value = 'basic';
+    productionSupplementRequired.value = null;
     loadDetail();
   }
 });
@@ -167,6 +173,15 @@ watch(visible, val => {
         <!-- 交付文件（文件树 + 文本查看器 + 下载文件包；v-if 挂载即加载） -->
         <NTabPane name="files" :tab="$t('page.aiplatform.project.drawer.tabs.files')">
           <FilesPane v-if="activeTab === 'files'" :project-id="projectId" />
+        </NTabPane>
+
+        <!-- 生产承接（#92：production:read 门控显隐；v-if 切签挂载即加载） -->
+        <NTabPane v-if="canReadProduction" name="production" :tab="$t('page.aiplatform.production.tab')">
+          <ProductionHandoffPane
+            v-if="activeTab === 'production'"
+            v-model:supplement-required="productionSupplementRequired"
+            :project-id="projectId"
+          />
         </NTabPane>
       </NTabs>
     </NDrawerContent>

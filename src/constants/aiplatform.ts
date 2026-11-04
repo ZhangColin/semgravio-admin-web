@@ -408,6 +408,19 @@ export const PAYMENT_NODES_AUTH = 'admin:aiplatform:payment:update-plan';
 export const PAYMENT_VERIFY_AUTH = 'admin:aiplatform:payment:verify';
 export const PAYMENT_REJECT_AUTH = 'admin:aiplatform:payment:reject';
 
+/* ---- 生产承接域（#92 A 批 T3——嵌项目抽屉第六签；两态直读 statusName）---- */
+
+/** 生产承接状态标签色（待安排生产 warning／生产中 success）；文案走响应 statusName 直读。 */
+export const productionStatusTagColor: Record<Api.Aiplatform.ProductionStatus, NaiveUI.ThemeColor> = {
+  1: 'warning',
+  2: 'success'
+};
+
+export const PRODUCTION_READ_AUTH = 'admin:aiplatform:production:read';
+export const PRODUCTION_UPDATE_AUTH = 'admin:aiplatform:production:update';
+export const PRODUCTION_ADVANCE_AUTH = 'admin:aiplatform:production:advance';
+export const PRODUCTION_SUPPLEMENT_AUTH = 'admin:aiplatform:production:supplement';
+
 /* ---- 模型供应商域（#88 B 批 T1——通道 CRUD/远端清单拉取对照/留痕；读写分权、每写一码）---- */
 
 /** 通道三写动作（权限码 Record 的键约束；读面四端点共用 read 一码不逐项门控）。 */

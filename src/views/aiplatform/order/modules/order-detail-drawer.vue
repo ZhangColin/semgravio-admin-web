@@ -20,6 +20,7 @@ import { CONTRACT_CREATE_AUTH, PAYMENT_READ_AUTH, orderDeliverableTypeTagColor, 
 import { formatDateTime, formatMoney, saveBlobFile } from '@/utils/common';
 import AccountProfile from '../../modules/account-profile.vue';
 import PaymentPlanPane from './payment-plan-pane.vue';
+import OrderScopeModal from './order-scope-modal.vue';
 
 defineOptions({ name: 'OrderDetailDrawer' });
 
@@ -76,6 +77,18 @@ const canCancel = computed(() => {
   const d = detail.value;
   return !!d && (d.status === 1 || d.status === 2) && hasAuth('admin:aiplatform:order:cancel');
 });
+const canScope = computed(() => {
+  const d = detail.value;
+  return !!d && (d.status === 1 || d.status === 2) && hasAuth('admin:aiplatform:order:scope');
+});
+const scopeModalVisible = ref(false);
+
+function handleScopeSuccess() {
+  window.$message?.success($t('page.aiplatform.order.success.scopeEntered'));
+  // scope 回执是 OrderResponse 非详情——不消费，回读详情拿三段与双版本读面。
+  loadDetail();
+}
+
 const canRetryArchive = computed(
   () => detail.value?.status === 3 && hasAuth('admin:aiplatform:order:retry-archive')
 );
@@ -167,6 +180,9 @@ defineExpose({ reload: loadDetail });
                 <NButton v-if="canCancel" type="error" ghost size="small" @click="emit('cancel', detail.id)">
                   {{ $t('page.aiplatform.order.action.cancel') }}
                 </NButton>
+                <NButton v-if="canScope" type="info" ghost size="small" @click="scopeModalVisible = true">
+                  {{ $t('page.aiplatform.order.action.scope') }}
+                </NButton>
                 <NButton v-if="canRetryArchive" type="warning" size="small" @click="emit('retry', detail.id)">
                   {{ $t('page.aiplatform.order.action.retryArchive') }}
                 </NButton>
@@ -199,6 +215,11 @@ defineExpose({ reload: loadDetail });
                   </NTag>
                 </span>
                 <span class="text-right text-#999">{{ $t('page.aiplatform.order.amount') }}</span><span>{{ formatMoney(detail.amount) }}</span>
+                <span class="text-right text-#999">{{ $t('page.aiplatform.order.drawer.prdVersionNo') }}</span><span>{{ detail.prdVersionNo ?? '—' }}</span>
+                <span class="text-right text-#999">{{ $t('page.aiplatform.order.drawer.demoVersionNo') }}</span><span>{{ detail.demoVersionNo ?? '—' }}</span>
+                <span class="text-right text-#999">{{ $t('page.aiplatform.order.drawer.scopeDeliverables') }}</span><span class="whitespace-pre-wrap">{{ detail.scopeDeliverables ?? '—' }}</span>
+                <span class="text-right text-#999">{{ $t('page.aiplatform.order.drawer.scopeAcceptance') }}</span><span class="whitespace-pre-wrap">{{ detail.scopeAcceptance ?? '—' }}</span>
+                <span class="text-right text-#999">{{ $t('page.aiplatform.order.drawer.scopeTimeline') }}</span><span class="whitespace-pre-wrap">{{ detail.scopeTimeline ?? '—' }}</span>
                 <span class="text-right text-#999">{{ $t('page.aiplatform.order.createdAt') }}</span><span>{{ formatDateTime(detail.createdAt) }}</span>
                 <span class="text-right text-#999">{{ $t('page.aiplatform.order.quotedAt') }}</span><span>{{ formatDateTime(detail.quotedAt) }}</span>
                 <template v-if="detail.paidAt">
@@ -244,6 +265,7 @@ defineExpose({ reload: loadDetail });
             <PaymentPlanPane v-if="activeTab === 'payment'" :order-id="orderId" />
           </NTabPane>
         </NTabs>
+        <OrderScopeModal v-model:visible="scopeModalVisible" :order-id="orderId" :detail="detail" @success="handleScopeSuccess" />
       </div>
     </NDrawerContent>
   </NDrawer>

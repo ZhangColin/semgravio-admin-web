@@ -1121,6 +1121,11 @@ declare namespace App {
               };
               priceHistory: string;
               prdSnapshot: string;
+              prdVersionNo: string;
+              demoVersionNo: string;
+              scopeDeliverables: string;
+              scopeAcceptance: string;
+              scopeTimeline: string;
               priceAmount: string;
               priceNote: string;
               priceOperator: string;
@@ -1137,9 +1142,18 @@ declare namespace App {
             action: {
               quote: string;
               requote: string;
+              scope: string;
               cancel: string;
               retryArchive: string;
               createContract: string;
+            };
+            scopeModal: {
+              title: string;
+              tip: string;
+              deliverablesPlaceholder: string;
+              acceptancePlaceholder: string;
+              timelinePlaceholder: string;
+              confirm: string;
             };
             quoteModal: {
               title: string;
@@ -1166,6 +1180,7 @@ declare namespace App {
             };
             success: {
               quoted: string;
+              scopeEntered: string;
               cancelled: string;
               retried: string;
               downloaded: string;
@@ -1254,6 +1269,50 @@ declare namespace App {
               verified: string;
               rejected: string;
               voucherDownloaded: string;
+            };
+          };
+          production: {
+            tab: string;
+            empty: string;
+            status: string;
+            contact: string;
+            nextStep: string;
+            progressNote: string;
+            estimatedStartAt: string;
+            transitions: string;
+            systemCreated: string;
+            needsUserSupplement: string;
+            supplementStateUnknown: string;
+            supplementConfirm: {
+              setTitle: string;
+              clearTitle: string;
+              setTip: string;
+              clearTip: string;
+            };
+            action: {
+              update: string;
+              advance: string;
+            };
+            advanceConfirm: {
+              title: string;
+              tip: string;
+              basisPlaceholder: string;
+            };
+            updateModal: {
+              title: string;
+              tip: string;
+              contactPlaceholder: string;
+              nextStepPlaceholder: string;
+              progressNotePlaceholder: string;
+              estimatedStartAtPlaceholder: string;
+              basisPlaceholder: string;
+              confirm: string;
+            };
+            success: {
+              updated: string;
+              advanced: string;
+              supplementSet: string;
+              supplementCleared: string;
             };
           };
           project: {

@@ -901,6 +901,11 @@ const local: App.I18n.Schema = {
           },
           priceHistory: '价目历史',
           prdSnapshot: 'PRD 快照',
+          prdVersionNo: 'PRD 版本号',
+          demoVersionNo: 'Demo 版本号',
+          scopeDeliverables: '范围·交付清单',
+          scopeAcceptance: '范围·验收方式',
+          scopeTimeline: '范围·工期口径',
           priceAmount: '金额',
           priceNote: '备注',
           priceOperator: '操作者',
@@ -917,9 +922,18 @@ const local: App.I18n.Schema = {
         action: {
           quote: '报价',
           requote: '改价',
+          scope: '范围录入',
           cancel: '取消订单',
           retryArchive: '重试归档',
           createContract: '创建合同'
+        },
+        scopeModal: {
+          title: '订单范围录入',
+          tip: '三段整组替换（不收半组）：留空即清空该段终态，作为合同冻结集工作底稿。',
+          deliverablesPlaceholder: '交付清单（空＝清空该段）',
+          acceptancePlaceholder: '验收方式（空＝清空该段）',
+          timelinePlaceholder: '工期口径（空＝清空该段）',
+          confirm: '整组提交'
         },
         quoteModal: {
           title: '提交报价',
@@ -946,6 +960,7 @@ const local: App.I18n.Schema = {
         },
         success: {
           quoted: '报价成功',
+          scopeEntered: '订单范围已录入',
           cancelled: '订单已取消',
           retried: '已触发归档重试',
           downloaded: '源码包下载成功',
@@ -1034,6 +1049,50 @@ const local: App.I18n.Schema = {
           verified: '核验已录入',
           rejected: '已打回',
           voucherDownloaded: '凭证下载成功'
+        }
+      },
+      production: {
+        tab: '生产承接',
+        empty: '暂无生产承接（开工条件满足后系统建档）',
+        status: '承接状态',
+        contact: '交付联系人',
+        nextStep: '下一步说明',
+        progressNote: '进展更新',
+        estimatedStartAt: '预计开始时间',
+        transitions: '动作留痕',
+        systemCreated: '系统建档',
+        needsUserSupplement: '需用户补充',
+        supplementStateUnknown: '当前状态未随承接读面下发',
+        supplementConfirm: {
+          setTitle: '置位需用户补充',
+          clearTitle: '清零需用户补充',
+          setTip: '置位后前台交付状态将盖帽为「需用户补充」，具体补充事项请在对话区沟通。',
+          clearTip: '清零后前台交付状态恢复按生产承接两态呈现。'
+        },
+        action: {
+          update: '更新信息',
+          advance: '推进生产'
+        },
+        advanceConfirm: {
+          title: '推进生产承接',
+          tip: '将从「待安排生产」推进至「生产中」，依据随动作留痕。',
+          basisPlaceholder: '推进依据（必填，至多 1000 字）'
+        },
+        updateModal: {
+          title: '生产承接信息更新',
+          tip: '整组替换提交（不收半组）：四段留空即清空终态，预计开始时间清空即回待安排；依据必填留痕。',
+          contactPlaceholder: '交付联系人（空＝清空）',
+          nextStepPlaceholder: '下一步说明（空＝清空）',
+          progressNotePlaceholder: '进展更新（空＝清空）',
+          estimatedStartAtPlaceholder: '预计开始时间（空＝清空）',
+          basisPlaceholder: '依据（必填，至多 1000 字）',
+          confirm: '整组更新'
+        },
+        success: {
+          updated: '生产承接信息已更新',
+          advanced: '已推进至生产中',
+          supplementSet: '需用户补充已置位',
+          supplementCleared: '需用户补充已清零'
         }
       },
       project: {

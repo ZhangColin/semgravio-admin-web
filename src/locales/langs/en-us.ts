@@ -905,6 +905,11 @@ const local: App.I18n.Schema = {
           },
           priceHistory: 'Price History',
           prdSnapshot: 'PRD Snapshot',
+          prdVersionNo: 'PRD Version',
+          demoVersionNo: 'Demo Version',
+          scopeDeliverables: 'Scope · Deliverables',
+          scopeAcceptance: 'Scope · Acceptance',
+          scopeTimeline: 'Scope · Timeline',
           priceAmount: 'Amount',
           priceNote: 'Note',
           priceOperator: 'Operator',
@@ -921,9 +926,18 @@ const local: App.I18n.Schema = {
         action: {
           quote: 'Quote',
           requote: 'Re-quote',
+          scope: 'Enter Scope',
           cancel: 'Cancel Order',
           retryArchive: 'Retry Archive',
           createContract: 'Create Contract'
+        },
+        scopeModal: {
+          title: 'Enter Order Scope',
+          tip: 'Whole-group replacement of all three sections (no partial submit): blank clears that section. Used as the working draft for the contract frozen set.',
+          deliverablesPlaceholder: 'Deliverables (blank to clear)',
+          acceptancePlaceholder: 'Acceptance (blank to clear)',
+          timelinePlaceholder: 'Timeline (blank to clear)',
+          confirm: 'Submit Group'
         },
         quoteModal: {
           title: 'Submit Quote',
@@ -950,6 +964,7 @@ const local: App.I18n.Schema = {
         },
         success: {
           quoted: 'Quote submitted',
+          scopeEntered: 'Order scope entered',
           cancelled: 'Order cancelled',
           retried: 'Archive retry triggered',
           downloaded: 'Source package downloaded',
@@ -1038,6 +1053,50 @@ const local: App.I18n.Schema = {
           verified: 'Verification recorded',
           rejected: 'Rejected',
           voucherDownloaded: 'Voucher downloaded'
+        }
+      },
+      production: {
+        tab: 'Production Handoff',
+        empty: 'No production handoff yet (created by the system when kickoff conditions are met)',
+        status: 'Handoff Status',
+        contact: 'Delivery Contact',
+        nextStep: 'Next Step',
+        progressNote: 'Progress Update',
+        estimatedStartAt: 'Estimated Start',
+        transitions: 'Action Timeline',
+        systemCreated: 'System Created',
+        needsUserSupplement: 'Needs User Supplement',
+        supplementStateUnknown: 'Current state unavailable from this read model',
+        supplementConfirm: {
+          setTitle: 'Set Needs User Supplement',
+          clearTitle: 'Clear Needs User Supplement',
+          setTip: 'The customer-facing delivery status will be capped as needs user supplement. Discuss the required items in the conversation.',
+          clearTip: 'The customer-facing delivery status will return to the production handoff state.'
+        },
+        action: {
+          update: 'Update Info',
+          advance: 'Start Production'
+        },
+        advanceConfirm: {
+          title: 'Advance Production Handoff',
+          tip: 'Move from pending scheduling to in production. The basis will be kept in the action timeline.',
+          basisPlaceholder: 'Advance basis (required, up to 1000 characters)'
+        },
+        updateModal: {
+          title: 'Update Production Handoff',
+          tip: 'Whole-group replacement (no partial submit): blank fields are cleared; clearing estimated start returns to unscheduled. Basis is required for the audit trail.',
+          contactPlaceholder: 'Delivery contact (blank to clear)',
+          nextStepPlaceholder: 'Next step (blank to clear)',
+          progressNotePlaceholder: 'Progress update (blank to clear)',
+          estimatedStartAtPlaceholder: 'Estimated start (blank to clear)',
+          basisPlaceholder: 'Basis (required, up to 1000 characters)',
+          confirm: 'Update Group'
+        },
+        success: {
+          updated: 'Production handoff updated',
+          advanced: 'Advanced to in production',
+          supplementSet: 'Needs user supplement set',
+          supplementCleared: 'Needs user supplement cleared'
         }
       },
       project: {

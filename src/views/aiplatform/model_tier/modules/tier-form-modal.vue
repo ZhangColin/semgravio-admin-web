@@ -15,6 +15,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { NForm, NFormItem, NInput, NModal, NSwitch } from 'naive-ui';
 import { fetchCreateAiplatformModelTier, fetchUpdateAiplatformModelTier } from '@/service/api';
 import { $t } from '@/locales';
+import { trimmedOrNull } from '@/utils/common';
 
 defineOptions({ name: 'TierFormModal' });
 
@@ -66,12 +67,6 @@ const isValid = computed(() => {
   const base = model.providerKey.trim().length > 0 && model.modelName.trim().length > 0;
   return props.target ? base : base && model.tierKey.trim().length > 0;
 });
-
-/** 空白归一 null（displayName null＝清空回落语义键，创建/更新同义；不依赖服务端归一）。 */
-function trimmedOrNull(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
 
 async function handleConfirm() {
   if (!isValid.value) return false;

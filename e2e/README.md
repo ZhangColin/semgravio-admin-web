@@ -1,4 +1,4 @@
-# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域、#90 扩模型档位域、#91 扩智能体配置档位化）
+# E2E 测试 seam（#57 落地，#56 六域共用；#61 扩成本域、#62 扩单价表域、#63 扩素材域、#64 契约增量、#67 扩技能域（#68 指派）、#87 扩合同域、#88 扩模型供应商域、#89 扩付款核验域、#90 扩模型档位域、#91 扩智能体配置档位化、#92 扩生产承接域与订单范围录入）
 
 headless Chrome（`playwright-core` 系统 channel，**免下载浏览器**）+ `page.route` 全量 mock。
 mock fixtures 的字段形状**派生自 admin :8081 `/v3/api-docs`**（各域 `support/*-fixtures.mjs` 头注释标明
@@ -19,9 +19,11 @@ node e2e/order.e2e.mjs
 
 ```
 e2e/
-  order.e2e.mjs            订单域验收流（列表/筛选/分页/抽屉/三写/下载/错误 toast）
+  order.e2e.mjs            订单域验收流（列表/筛选/分页/抽屉/三写/下载/错误 toast；#92 双版本与
+                           scope 三段读面/范围录入整组替换与空段 null/ORD_033·047 透传）
   project.e2e.mjs          项目域验收流（列表/筛选/分页/抽屉五 tab：基本信息/对话史（#64 四载荷 +
-                           报价卡 orderId 复制）/PRD/版本（#64 ClosingCard 结构化）/交付文件）
+                           报价卡 orderId 复制）/PRD/版本（#64 ClosingCard 结构化）/交付文件；
+                           #92 第六签「生产承接」见 production-handoff.e2e.mjs）
   workspace.e2e.mjs        沙箱域验收流（列表/期望态·实态过滤（漂移组合）/抽屉全字段/四写门控/直填+失败 toast）
   cost.e2e.mjs             成本域验收流（时间窗必填/五档 tile/双柱状（「—」桶 tooltip 锚定）/unpriced 卡
                            高亮⇄收起/项目成本表分页/行点击下钻/清窗停查/#64 币种桶四面（含空对象空态））
@@ -144,6 +146,15 @@ e2e/
                            applyPaymentNodes/Verify/Reject 就地改——verify＝provider 全额判定
                            镜像（settled≥amount 转已到账、不足回待支付），守卫族
                            ORD_036/037/038/039/041/042/044/045 自然裁决）
+  production-handoff.e2e.mjs 生产承接域验收流（#92 A 批 T3：项目抽屉第六签按 production:read 显隐/
+                           四段 null「—」＋两态 statusName 直读＋留痕新→旧与系统建档/update 五字段
+                           整组替换（空段 null＋预计开始本地 ISO＋basis 必填）＋回执详情与时间线直填
+                           无二次 GET/advance $dialog 必填依据＋409 PRJ_056 透传＋生产中按钮消失/
+                           needs-user-supplement 受控开关＋取消确认零请求＋data=null 回执 toast 后一次
+                           回读；读面不含盖帽布尔，null 明示未知，已确认值由父抽屉跨切签保留、重开仍未知）
+  production-handoff-fixtures.mjs 生产承接 fixtures（AiplatformProductionHandoffResponse 形状——
+                           两项目覆盖待安排生产/生产中、四段有值/全 null、信息更新/推进/系统建档留痕；
+                           update/advance 由 harness 就地追加留痕并回完整 detail，supplement 回 data=null）
 ```
 
 技能域 fixtures 一并承载指派态（`SKILL_ASSIGNMENTS` 三槽初始指派——PUT 由 harness 就地整包替换，

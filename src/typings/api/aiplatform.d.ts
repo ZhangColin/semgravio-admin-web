@@ -146,6 +146,13 @@ declare namespace Api {
       currency: string;
       /** 最新报价备注 */
       note: string | null;
+      /** 下单冻结双版本引用；admin HEAD 详情 DTO 暂未镜像，故缺省与 null 同呈「—」。 */
+      prdVersionNo?: number | null;
+      demoVersionNo?: number | null;
+      /** scope 工作副本三段（未录入 null） */
+      scopeDeliverables: string | null;
+      scopeAcceptance: string | null;
+      scopeTimeline: string | null;
       priceEntries: OrderPriceEntry[];
       /** 下单冻结的 PRD 快照正文 */
       prdSnapshot: string | null;
@@ -169,9 +176,15 @@ declare namespace Api {
       statusName: string;
       deliverableType: OrderDeliverableType;
       deliverableTypeName: string;
+      /** 下单冻结双版本引用（OrderResponse 契约字段；遗留单 null） */
+      prdVersionNo: number | null;
+      demoVersionNo: number | null;
       amount: string | null;
       currency: string;
       note: string | null;
+      scopeDeliverables: string | null;
+      scopeAcceptance: string | null;
+      scopeTimeline: string | null;
       quotedAt: string | null;
       /** 写回执的价目行不带操作者两列（契约如此，消费方不用） */
       priceEntries: Omit<OrderPriceEntry, 'operatorId' | 'operatorName'>[];
@@ -202,6 +215,13 @@ declare namespace Api {
     interface QuoteOrderCommand {
       amount: number;
       note?: string;
+    }
+
+    /** POST /orders/{id}/scope body——三段整组替换；空段显式 null 清空。 */
+    interface OrderScopeCommand {
+      scopeDeliverables: string | null;
+      scopeAcceptance: string | null;
+      scopeTimeline: string | null;
     }
 
     /** POST /orders/{id}/cancel body——reason 必填（空禁用确认）。 */
@@ -363,6 +383,60 @@ declare namespace Api {
       latestOrder: OrderBrief | null;
       /** 成本汇总指针——恒在：无用量＝空 cost＋unpriced:false 明确空态（provider 文档钉死） */
       costSummary: CostSummary;
+    }
+
+    /** 生产承接状态（#92）：1=待安排生产 2=生产中（两态单向推进，无终态概念）。 */
+    type ProductionStatus = 1 | 2;
+
+    /** 生产承接留痕动作：1=创建 2=推进 3=信息更新。 */
+    type ProductionTransitionAction = 1 | 2 | 3;
+
+    /** 生产承接留痕行（新→旧；创建行 operatorId=system）。 */
+    interface ProductionTransition {
+      action: ProductionTransitionAction;
+      actionName: string;
+      fromStatus: ProductionStatus;
+      fromStatusName: string;
+      toStatus: ProductionStatus;
+      toStatusName: string;
+      basis: string;
+      operatorId: string;
+      operatorName: string | null;
+      createdAt: string;
+    }
+
+    /** 生产承接全量面（GET/update/advance 同形；读面不含「需用户补充」布尔）。 */
+    interface ProductionHandoff {
+      id: string;
+      projectId: string;
+      orderId: string;
+      status: ProductionStatus;
+      statusName: string;
+      contact: string | null;
+      nextStep: string | null;
+      progressNote: string | null;
+      estimatedStartAt: string | null;
+      createdAt: string;
+      transitions: ProductionTransition[];
+    }
+
+    /** POST production-handoff/update——五字段整组替换；空段显式 null 清空，依据必填。 */
+    interface ProductionUpdateCommand {
+      contact: string | null;
+      nextStep: string | null;
+      progressNote: string | null;
+      estimatedStartAt: string | null;
+      basis: string;
+    }
+
+    /** POST production-handoff/advance——待安排生产→生产中，依据必填。 */
+    interface ProductionActionCommand {
+      basis: string;
+    }
+
+    /** POST production-handoff/needs-user-supplement——置位/清零项目级盖帽；回执 data=null。 */
+    interface ProductionSupplementCommand {
+      required: boolean;
     }
 
     /** 对话史条目（GET /projects/{id}/conversation；id 升序=对话序全量同序）。 */

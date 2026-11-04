@@ -198,6 +198,9 @@ export const ORDER_DETAILS = {
     amount: '49900',
     currency: 'CNY',
     note: '首版报价（含 3 轮迭代）',
+    scopeDeliverables: '管理后台＋小程序（含 5 个核心页面）',
+    scopeAcceptance: '按 PRD v3 逐项验收',
+    scopeTimeline: '4 周（含 1 周联调）',
     priceEntries: [
       {
         id: '7394120209100200002',
@@ -387,9 +390,14 @@ export function writeAck(orderId) {
       statusName: base.statusName,
       deliverableType: base.deliverableType,
       deliverableTypeName: base.deliverableTypeName,
+      prdVersionNo: detail?.prdVersionNo ?? null,
+      demoVersionNo: detail?.demoVersionNo ?? null,
       amount: base.amount,
       currency: base.currency,
       note: base.note ?? null,
+      scopeDeliverables: detail?.scopeDeliverables ?? null,
+      scopeAcceptance: detail?.scopeAcceptance ?? null,
+      scopeTimeline: detail?.scopeTimeline ?? null,
       quotedAt: base.quotedAt ?? null,
       priceEntries: (detail?.priceEntries ?? []).map(({ id, amount, currency, note, createdAt }) => ({
         id,

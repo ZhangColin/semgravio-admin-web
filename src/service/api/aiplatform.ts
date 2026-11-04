@@ -108,6 +108,11 @@ export function fetchQuoteAiplatformOrder(id: string, data: Api.Aiplatform.Quote
   return request<Api.Aiplatform.OrderWriteAck>({ url: `/aiplatform/orders/${id}/quote`, method: 'post', data });
 }
 
+/** POST /aiplatform/orders/{id}/scope——范围三段整组替换（限未支付；回执不消费，回读详情）。 */
+export function fetchEnterAiplatformOrderScope(id: string, data: Api.Aiplatform.OrderScopeCommand) {
+  return request<Api.Aiplatform.OrderWriteAck>({ url: `/aiplatform/orders/${id}/scope`, method: 'post', data });
+}
+
 /** POST /aiplatform/orders/{id}/cancel——运营取消（限未支付态，reason 必填）。 */
 export function fetchCancelAiplatformOrder(id: string, data: Api.Aiplatform.CancelOrderCommand) {
   return request<Api.Aiplatform.OrderWriteAck>({ url: `/aiplatform/orders/${id}/cancel`, method: 'post', data });
@@ -179,6 +184,41 @@ export function fetchGetAiplatformProjectFileContent(id: string, path: string) {
 /** GET /aiplatform/projects/{id}/files/package——文件包 tar.gz 二进制流（无信封，成功返回 Blob；sealed=-archive/未封存=-source 文件名由 provider 经 Content-Disposition 透传）。 */
 export function fetchDownloadProjectFilesPackage(id: string) {
   return request<Blob, 'blob'>({ url: `/aiplatform/projects/${id}/files/package`, method: 'get', responseType: 'blob' });
+}
+
+/** GET /aiplatform/projects/{id}/production-handoff——生产承接全量面（两态/四段/留痕新→旧）。 */
+export function fetchGetAiplatformProductionHandoff(projectId: string) {
+  return request<Api.Aiplatform.ProductionHandoff>({
+    url: `/aiplatform/projects/${projectId}/production-handoff`,
+    method: 'get'
+  });
+}
+
+/** POST /aiplatform/projects/{id}/production-handoff/update——信息五字段整组替换（回执同详情，直填免回读）。 */
+export function fetchUpdateAiplatformProductionHandoff(projectId: string, data: Api.Aiplatform.ProductionUpdateCommand) {
+  return request<Api.Aiplatform.ProductionHandoff>({
+    url: `/aiplatform/projects/${projectId}/production-handoff/update`,
+    method: 'post',
+    data
+  });
+}
+
+/** POST /aiplatform/projects/{id}/production-handoff/advance——待安排生产→生产中（回执同详情，直填免回读）。 */
+export function fetchAdvanceAiplatformProductionHandoff(projectId: string, data: Api.Aiplatform.ProductionActionCommand) {
+  return request<Api.Aiplatform.ProductionHandoff>({
+    url: `/aiplatform/projects/${projectId}/production-handoff/advance`,
+    method: 'post',
+    data
+  });
+}
+
+/** POST /aiplatform/projects/{id}/production-handoff/needs-user-supplement——盖帽置位/清零（回执 data=null，toast＋回读）。 */
+export function fetchSetAiplatformProductionSupplement(projectId: string, data: Api.Aiplatform.ProductionSupplementCommand) {
+  return request<null>({
+    url: `/aiplatform/projects/${projectId}/production-handoff/needs-user-supplement`,
+    method: 'post',
+    data
+  });
 }
 
 /** GET /aiplatform/workspaces——沙箱清单（desired/actual 单选可组合；分页 1-based，size 上界 100——实态逐行探查，观测页不必贪大）。 */

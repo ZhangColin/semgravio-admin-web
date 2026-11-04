@@ -160,6 +160,42 @@ async function main() {
   // #76 详情栅格类型项：status 后同款 tag（此单=系统＋设计）
   h.check('详情栅格类型项 tag（系统＋设计）', await drawer.getByText('系统＋设计', { exact: true }).isVisible());
 
+  /* 6b. #92 双版本＋scope 三段读面＋未支付范围整组录入（ORD_033 竞态透传后成功回读） */
+  h.check('详情双版本缺字段如实「—」（admin HEAD 详情未下发）',
+    (await drawer.getByText('PRD 版本号', { exact: true }).locator('xpath=following-sibling::*[1]').textContent()) === '—' &&
+      (await drawer.getByText('Demo 版本号', { exact: true }).locator('xpath=following-sibling::*[1]').textContent()) === '—');
+  h.check('详情 scope 三段（交付/验收/工期）',
+    (await drawer.getByText('管理后台＋小程序（含 5 个核心页面）').count()) > 0 &&
+      (await drawer.getByText('按 PRD v3 逐项验收').count()) > 0 &&
+      (await drawer.getByText('4 周（含 1 周联调）').count()) > 0);
+
+  const scopeDetailReadsBefore = calls.filter(c => c.method === 'GET' && c.path === '/aiplatform/orders/7393120209100200009').length;
+  await drawer.getByRole('button', { name: '范围录入' }).click();
+  const scopeModal = page.locator('.n-modal').filter({ hasText: '订单范围录入' });
+  await scopeModal.getByPlaceholder('交付清单（空＝清空该段）').fill('管理后台＋小程序（含 6 个核心页面）');
+  await scopeModal.getByPlaceholder('验收方式（空＝清空该段）').fill('');
+  await scopeModal.getByPlaceholder('工期口径（空＝清空该段）').fill('5 周（含 1 周联调）');
+  state.failNextOrderScope = true;
+  await scopeModal.getByRole('button', { name: '整组提交' }).click();
+  const scopeError = await waitForMessage(page, msgs => msgs.some(m => m.includes('ORD_033')));
+  h.check('范围录入 409 ORD_033 透传 toast', Boolean(scopeError), JSON.stringify(scopeError));
+  h.check('范围录入失败保持弹窗可修正重试', await scopeModal.isVisible());
+  await scopeModal.getByRole('button', { name: '整组提交' }).click();
+  await drawer.getByText('管理后台＋小程序（含 6 个核心页面）').waitFor({ timeout: 10000 });
+  const scopeCall = calls.findLast(c => c.method === 'POST' && c.path === '/aiplatform/orders/7393120209100200009/scope');
+  const scopeBody = JSON.parse(scopeCall?.body ?? '{}');
+  h.check('scope 三段整组提交（空段=null）',
+    scopeBody.scopeDeliverables === '管理后台＋小程序（含 6 个核心页面）' &&
+      scopeBody.scopeAcceptance === null &&
+      scopeBody.scopeTimeline === '5 周（含 1 周联调）',
+    scopeCall?.body);
+  h.check('scope 成功回读订单详情（新值与空段「—」）',
+    calls.filter(c => c.method === 'GET' && c.path === '/aiplatform/orders/7393120209100200009').length === scopeDetailReadsBefore + 1 &&
+      (await drawer.getByText('管理后台＋小程序（含 6 个核心页面）').count()) > 0 &&
+      (await drawer.getByText('5 周（含 1 周联调）').count()) > 0 &&
+      (await drawer.getByText('—', { exact: true }).count()) > 0);
+
+
   /* ================= 7. 三写之一：改价（已报价=改价，amount 元→分 + note） ================= */
   const detailCallsBefore = calls.filter(c => c.method === 'GET' && c.path.includes('/aiplatform/orders/7393120209100200009')).length;
   const listCallsBefore = calls.filter(c => c.path === '/aiplatform/orders').length;
@@ -182,6 +218,11 @@ async function main() {
   const confirmBtn = cancelModal.getByRole('button', { name: '确认取消' });
   h.check('取消原因空时确认禁用', await confirmBtn.isDisabled());
   await cancelModal.getByPlaceholder('取消原因（必填）').fill('需求变更，客户暂缓');
+  state.failNextCancelSigned = true;
+  await confirmBtn.click();
+  const signedCancelError = await waitForMessage(page, msgs => msgs.some(m => m.includes('ORD_047') && m.includes('需求变化请在对话区沟通')));
+  h.check('ORD_047 取消关门文案原样透传（含对话区指引，不判码）', Boolean(signedCancelError), JSON.stringify(signedCancelError));
+  h.check('ORD_047 失败保持取消弹窗', await cancelModal.isVisible());
   await confirmBtn.click();
   await sleep(800);
   const cancelCall = calls.findLast(c => c.path.endsWith('/cancel') && c.method === 'POST');
@@ -205,6 +246,7 @@ async function main() {
   await paidRow.getByRole('button', { name: /详\s*情/ }).click();
   const paidDrawer = page.locator('.n-drawer');
   await paidDrawer.getByRole('button', { name: '下载源码包' }).waitFor({ timeout: 10000 });
+  h.check('已支付订单不出「范围录入」（status 1|2 门控）', (await paidDrawer.getByRole('button', { name: '范围录入' }).count()) === 0);
   await paidDrawer.getByRole('button', { name: '下载源码包' }).click();
   await sleep(800);
   h.check(

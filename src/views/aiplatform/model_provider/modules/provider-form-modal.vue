@@ -15,6 +15,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { NForm, NFormItem, NInput, NModal, NSwitch } from 'naive-ui';
 import { fetchCreateAiplatformModelProvider, fetchUpdateAiplatformModelProvider } from '@/service/api';
 import { $t } from '@/locales';
+import { trimmedOrNull } from '@/utils/common';
 
 defineOptions({ name: 'ProviderFormModal' });
 
@@ -61,12 +62,6 @@ const isValid = computed(() => {
   const base = model.baseUrl.trim().length > 0;
   return props.mode === 'create' ? base && model.providerKey.trim().length > 0 : base;
 });
-
-/** 空白归一 null（apiKey null＝暂不配置/保持现值，按模式落语义；不依赖服务端归一）。 */
-function trimmedOrNull(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
 
 async function handleConfirm() {
   if (!isValid.value) return false;

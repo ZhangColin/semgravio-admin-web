@@ -73,6 +73,8 @@ export async function installAiplatformMocks(page, fixtures) {
   const calls = [];
   const state = {
     failNextQuote: false,
+    failNextOrderScope: false,
+    failNextCancelSigned: false,
     failNextWorkspaceWrite: false,
     failNextReprice: false,
     failNextMaterialWrite: false,
@@ -93,7 +95,8 @@ export async function installAiplatformMocks(page, fixtures) {
     failNextTierDelete: false,
     delayNextTierList: false,
     failNextPaymentNodes: false,
-    failNextPaymentVerify: false
+    failNextPaymentVerify: false,
+    failNextProductionAdvance: false
   };
 
   const json = (route, status, body) =>
@@ -1064,6 +1067,7 @@ export async function installAiplatformMocks(page, fixtures) {
           permissions: [
             { code: 'admin:aiplatform:order:read', name: 'AI 平台 / 订单查看' },
             { code: 'admin:aiplatform:order:quote', name: 'AI 平台 / 订单报价' },
+            { code: 'admin:aiplatform:order:scope', name: 'AI 平台 / 订单范围录入' },
             { code: 'admin:aiplatform:order:cancel', name: 'AI 平台 / 订单取消' },
             { code: 'admin:aiplatform:order:retry-archive', name: 'AI 平台 / 订单重试归档' },
             { code: 'admin:aiplatform:project:read', name: 'AI 平台 / 项目查看' },
@@ -1113,7 +1117,11 @@ export async function installAiplatformMocks(page, fixtures) {
             { code: 'admin:aiplatform:payment:read', name: 'AI 平台 / 付款核验查看' },
             { code: 'admin:aiplatform:payment:update-plan', name: 'AI 平台 / 付款节点录入' },
             { code: 'admin:aiplatform:payment:verify', name: 'AI 平台 / 付款到账核验' },
-            { code: 'admin:aiplatform:payment:reject', name: 'AI 平台 / 付款打回' }
+            { code: 'admin:aiplatform:payment:reject', name: 'AI 平台 / 付款打回' },
+            { code: 'admin:aiplatform:production:read', name: 'AI 平台 / 生产承接查看' },
+            { code: 'admin:aiplatform:production:update', name: 'AI 平台 / 生产承接信息更新' },
+            { code: 'admin:aiplatform:production:advance', name: 'AI 平台 / 生产承接推进' },
+            { code: 'admin:aiplatform:production:supplement', name: 'AI 平台 / 需用户补充置位' }
           ],
           menus: []
         },
@@ -1342,7 +1350,7 @@ export async function installAiplatformMocks(page, fixtures) {
     }
     if (fixtures.order) {
       const orderMatch = path.match(
-        /^\/aiplatform\/orders\/([^/]+)(\/(quote|cancel|retry-archive|source-package|design-package))?$/
+        /^\/aiplatform\/orders\/([^/]+)(\/(quote|scope|cancel|retry-archive|source-package|design-package))?$/
       );
       if (orderMatch) {
         const [, id, , action] = orderMatch;
@@ -1351,6 +1359,19 @@ export async function installAiplatformMocks(page, fixtures) {
           const detail = fixtures.order.ORDER_DETAILS[id];
           if (detail) return json(route, 200, { code: 200, message: 'ok', data: detail, requestId: 'e2e-mock', errors: null });
           return json(route, 404, { code: 5001, message: '订单不存在（ORD_001）', data: null, requestId: 'e2e-mock', errors: null });
+        }
+        if (action === 'scope' && method === 'POST') {
+          const detail = fixtures.order.ORDER_DETAILS[id];
+          if (!detail) return json(route, 404, { code: 5001, message: '订单不存在（ORD_001）', data: null, requestId: 'e2e-mock', errors: null });
+          if (state.failNextOrderScope || (detail.status !== 1 && detail.status !== 2)) {
+            state.failNextOrderScope = false;
+            return json(route, 409, { code: 5033, message: '订单已支付或已终结，无法录入范围（ORD_033）', data: null, requestId: 'e2e-mock', errors: null });
+          }
+          const command = JSON.parse(route.request().postData() ?? '{}');
+          detail.scopeDeliverables = command.scopeDeliverables;
+          detail.scopeAcceptance = command.scopeAcceptance;
+          detail.scopeTimeline = command.scopeTimeline;
+          return json(route, 200, fixtures.order.writeAck(id));
         }
         if (action === 'quote' && method === 'POST') {
           if (state.failNextQuote) {
@@ -1361,6 +1382,10 @@ export async function installAiplatformMocks(page, fixtures) {
           return json(route, 200, fixtures.order.writeAck(id));
         }
         if (action === 'cancel' && method === 'POST') {
+          if (state.failNextCancelSigned) {
+            state.failNextCancelSigned = false;
+            return json(route, 409, { code: 5047, message: '合同已签署完成，订单无法取消；需求变化请在对话区沟通（ORD_047）', data: null, requestId: 'e2e-mock', errors: null });
+          }
           return json(route, 200, fixtures.order.writeAck(id));
         }
         if (action === 'retry-archive' && method === 'POST') {
@@ -1389,6 +1414,79 @@ export async function installAiplatformMocks(page, fixtures) {
             body: gzip
           });
         }
+      }
+    }
+
+    // ---- 生产承接域（#92；详情读面——两态/四段/留痕时间线） ----
+    if (fixtures.productionHandoff) {
+      const productionMatch = path.match(/^\/aiplatform\/projects\/([^/]+)\/production-handoff$/);
+      if (productionMatch && method === 'GET') {
+        const detail = fixtures.productionHandoff.PRODUCTION_HANDOFFS[productionMatch[1]];
+        if (detail) return json(route, 200, { code: 200, message: 'ok', data: detail, requestId: 'e2e-mock', errors: null });
+        return json(route, 404, { code: 4055, message: '生产承接记录不存在（PRJ_055）', data: null, requestId: 'e2e-mock', errors: null });
+      }
+      const productionUpdateMatch = path.match(/^\/aiplatform\/projects\/([^/]+)\/production-handoff\/update$/);
+      if (productionUpdateMatch && method === 'POST') {
+        const detail = fixtures.productionHandoff.PRODUCTION_HANDOFFS[productionUpdateMatch[1]];
+        if (!detail) return json(route, 404, { code: 4055, message: '生产承接记录不存在（PRJ_055）', data: null, requestId: 'e2e-mock', errors: null });
+        const command = JSON.parse(route.request().postData() ?? '{}');
+        if (!command.basis?.trim()) {
+          return json(route, 400, { code: 4057, message: '生产承接动作依据必填（PRJ_057）', data: null, requestId: 'e2e-mock', errors: null });
+        }
+        detail.contact = command.contact;
+        detail.nextStep = command.nextStep;
+        detail.progressNote = command.progressNote;
+        detail.estimatedStartAt = command.estimatedStartAt;
+        detail.transitions.unshift({
+          action: 3,
+          actionName: '信息更新',
+          fromStatus: detail.status,
+          fromStatusName: detail.statusName,
+          toStatus: detail.status,
+          toStatusName: detail.statusName,
+          basis: command.basis.trim(),
+          operatorId: '1',
+          operatorName: 'E2E Mock',
+          createdAt: '2026-11-04T12:00:00'
+        });
+        return json(route, 200, { code: 200, message: 'ok', data: detail, requestId: 'e2e-mock', errors: null });
+      }
+      const productionAdvanceMatch = path.match(/^\/aiplatform\/projects\/([^/]+)\/production-handoff\/advance$/);
+      if (productionAdvanceMatch && method === 'POST') {
+        const detail = fixtures.productionHandoff.PRODUCTION_HANDOFFS[productionAdvanceMatch[1]];
+        if (!detail) return json(route, 404, { code: 4055, message: '生产承接记录不存在（PRJ_055）', data: null, requestId: 'e2e-mock', errors: null });
+        const command = JSON.parse(route.request().postData() ?? '{}');
+        if (!command.basis?.trim()) {
+          return json(route, 400, { code: 4057, message: '生产承接动作依据必填（PRJ_057）', data: null, requestId: 'e2e-mock', errors: null });
+        }
+        if (state.failNextProductionAdvance || detail.status !== 1) {
+          state.failNextProductionAdvance = false;
+          return json(route, 409, { code: 4056, message: '生产承接当前状态不允许该操作（PRJ_056）', data: null, requestId: 'e2e-mock', errors: null });
+        }
+        const fromStatus = detail.status;
+        const fromStatusName = detail.statusName;
+        detail.status = 2;
+        detail.statusName = '生产中';
+        detail.transitions.unshift({
+          action: 2,
+          actionName: '推进',
+          fromStatus,
+          fromStatusName,
+          toStatus: 2,
+          toStatusName: '生产中',
+          basis: command.basis.trim(),
+          operatorId: '1',
+          operatorName: 'E2E Mock',
+          createdAt: '2026-11-04T12:10:00'
+        });
+        return json(route, 200, { code: 200, message: 'ok', data: detail, requestId: 'e2e-mock', errors: null });
+      }
+      const supplementMatch = path.match(/^\/aiplatform\/projects\/([^/]+)\/production-handoff\/needs-user-supplement$/);
+      if (supplementMatch && method === 'POST') {
+        const detail = fixtures.productionHandoff.PRODUCTION_HANDOFFS[supplementMatch[1]];
+        if (!detail) return json(route, 404, { code: 4001, message: '项目不存在（PRJ_001）', data: null, requestId: 'e2e-mock', errors: null });
+        // 项目级盖帽存于 project 而非 handoff 读面（admin HEAD 契约如此）；回执 data=null。
+        return json(route, 200, { code: 200, message: 'ok', data: null, requestId: 'e2e-mock', errors: null });
       }
     }
 

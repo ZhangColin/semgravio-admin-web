@@ -67,6 +67,15 @@ export function formatMoney(cents?: number | string | null): string {
 }
 
 /**
+ * Normalize a form field to its terminal replacement value: trimmed text, or null when blank.
+ *
+ * 合同/通道/档位/生产/订单范围弹窗共用「空白＝显式清空」语义，调用方不得依赖服务端归一。
+ */
+export function trimmedOrNull(value: string): string | null {
+  return value.trim() || null;
+}
+
+/**
  * Parse a user-typed yuan amount (positive, ≤2 decimal places) into a number.
  *
  * 金额弹窗「元输入、提交转整数分」的共用校验（quote-modal 落地、#89 付款两 modal 起收编
