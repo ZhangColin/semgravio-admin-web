@@ -1,0 +1,35 @@
+# 管理后台前端 - 生产编排（#94；对齐 aiplatform deploy/web.compose.yml 布局）
+# 服务器应用根执行：docker compose -f deploy/web.compose.yml up -d --build
+# （BACKEND_URL 经 env_file ../.env.production 注入——路径相对本 compose 文件解析）
+# 应用容器只接入共享 webnet，不映射宿主端口；对外服务由共享 nginx 反代。
+name: semgravio-admin-web
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    image: semgravio-admin-web:latest
+    container_name: semgravio-admin-web
+    # BACKEND_URL（admin BFF 源站，不含 /api/admin）由 env_file 注入容器，
+    # 启动脚本判空/口径校验；空值/占位值/带路径值会让容器响亮失败。
+    env_file:
+      - ../.env.production
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    external: true

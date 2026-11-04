@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 一键发布 admin-web 到 semgravio-eu-1：远端前置检查 → 打包（记录 HEAD revision）→ 上传 →
 # 服务器解包（不覆盖现网 env 与证书）→ 镜像构建启动 → 共享 nginx 配置/证书经门禁安装 → HTTPS 冒烟。
-# 仓库根执行：./publish.sh（PowerShell 里：bash publish.sh）
+# 仓库根执行：deploy/release.sh（PowerShell 里：bash deploy/release.sh）
 # 平台是 infra 的普通接入方（#93）：发布前置检查共享基础设施（semgravio-nginx 健康＋webnet 在），
 # 自己的 conf 经门禁 install-nginx-conf.sh 安装（撞车即拒/语法门禁/失败回滚）；不触碰
 # 基础设施的数据库/缓存/预览网络等其它职责（那些归 infra 单元管辖）。
@@ -12,9 +12,9 @@
 #   REMOTE_DIR=semgravio-admin-web（相对服务器 $HOME；绝对路径以 / 开头也可）
 #   INFRA_DIR=semgravio-infra（相对服务器 $HOME；共享 infra 单元目录，门禁脚本所在）
 # 常用开关：SKIP_BUILD=1 复用 dist/ 里最新的包只发布；ALLOW_DIRTY=1 带脏打包（醒目警告，见 build-bundle.sh）。
-# 服务器侧日常运维（看状态/日志/重启/冒烟）用 ./deploy.sh。
+# 服务器侧日常运维（看状态/日志/重启/冒烟）用 deploy/server.sh。
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 SERVER_HOST="${SERVER_HOST:-3.70.172.160}"
 SERVER_USER="${SERVER_USER:-ubuntu}"
@@ -63,11 +63,11 @@ case "$BACKEND_URL" in
   *)                    echo "   ✗ BACKEND_URL=$BACKEND_URL 不是合法 http(s) 源站地址"; bad=1 ;;
 esac
 # 证书与私钥（证书源目录在应用部署单元内，固定文件名）
-for f in fullchain.pem privkey.pem; do
-  if [ -f "$APP_PATH/certs/$f" ]; then
+for f in admin.semgravio.com_bundle.pem admin.semgravio.com.key; do
+  if [ -f "$APP_PATH/deploy/certs/$f" ]; then
     echo "   ✓ certs/$f"
   else
-    echo "   ✗ 缺证书文件 $APP_PATH/certs/$f"
+    echo "   ✗ 缺证书文件 $APP_PATH/deploy/certs/$f"
     bad=1
   fi
 done
@@ -107,25 +107,25 @@ tar -xzf "$HOME/$BUNDLE_FN" --strip-components=1
 rm "$HOME/$BUNDLE_FN"
 echo "   REVISION: $(cat REVISION)"
 # 双保险：解包后现网输入必须仍在（前置检查已验过它们在）
-for f in .env.production certs/fullchain.pem certs/privkey.pem; do
+for f in .env.production deploy/certs/admin.semgravio.com_bundle.pem deploy/certs/admin.semgravio.com.key; do
   [ -e "$f" ] || { echo "   ✗ 解包后 $f 丢失——立即人工排查"; exit 1; }
 done
 
 echo "-- 构建并启动（compose 显式 name/image/container_name，重复执行不误伤其他服务容器）"
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f deploy/web.compose.yml up -d --build
 
 echo "-- 共享 nginx 配置与证书经门禁安装（撞车即拒/语法门禁/失败回滚；conf.d 挂载热更）"
-"$INFRA_PATH/install-nginx-conf.sh" admin-web "$PWD/deploy/nginx/admin-web.conf" "$PWD/certs"
+"$INFRA_PATH/install-nginx-conf.sh" admin-web "$PWD/deploy/nginx/admin-web.conf" "$PWD/deploy/certs"
 
 echo "-- 等应用就绪（经共享 nginx 探 HTTPS 首页，最长 120s）"
 i=0
 until [ "$(curl -sk -o /dev/null -w '%{http_code}' --resolve admin.semgravio.com:443:127.0.0.1 https://admin.semgravio.com/)" = "200" ]; do
   i=$((i+1))
-  [ "$i" -ge 60 ] && { echo "应用 120s 未就绪；查日志：./deploy.sh logs"; exit 1; }
+  [ "$i" -ge 60 ] && { echo "应用 120s 未就绪；查日志：deploy/server.sh logs web"; exit 1; }
   sleep 2
 done
 
-echo "-- 冒烟（与 ./deploy.sh smoke 同一脚本 deploy/smoke-remote.sh；实际状态码如实输出）"
+echo "-- 冒烟（与 deploy/server.sh smoke 同一脚本 deploy/smoke-remote.sh；实际状态码如实输出）"
 bash deploy/smoke-remote.sh
 docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'semgravio-admin-web|semgravio-nginx' || true
 REMOTE

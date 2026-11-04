@@ -14,7 +14,7 @@ fail() {
 }
 
 # 1. 空值响亮失败
-[ -n "${BACKEND_URL:-}" ] || fail "BACKEND_URL 不能为空（也未设置）。请在服务器环境填入 admin 后端源站地址（源站口径，如 http://semgravio-admin:8081，不含 /api/admin），参考 .env.production.example。"
+[ -n "${BACKEND_URL:-}" ] || fail "BACKEND_URL 不能为空（也未设置）。请在服务器环境填入 admin 后端源站地址（源站口径，如 http://semgravio-admin:8081，不含 /api/admin），参考 deploy/env.web.example。"
 
 # 2. 口径校验：必须是 http(s)://主机[:端口]，不允许携带任何路径（尤其 /api/admin 前缀——
 #    前缀由本容器 nginx 保留转发，重复拼接会导致 404）

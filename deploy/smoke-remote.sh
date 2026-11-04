@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 外部冒烟断言（#96，单一事实源）：HTTP→HTTPS 跳转 / HTTPS 首页 200 / 未登录当前用户 401。
-# 消费方两处——运维入口 `./deploy.sh smoke`（ssh 'bash -s' < 本脚本）与一键发布
-# `publish.sh` 阶段 5（解包后的部署单元内 `bash deploy/smoke-remote.sh`）——同一组断言，
+# 消费方两处——运维入口 `deploy/server.sh smoke`（ssh 'bash -s' < 本脚本）与一键发布
+# `deploy/release.sh` 阶段 5（解包后的部署单元内 `bash deploy/smoke-remote.sh`）——同一组断言，
 # 改断言只改这里。
 # 判定面 = 共享 nginx 的公网入口行为：Host/SNI 都用真实域名、--resolve 指到 127.0.0.1
 # （真实 TLS 握手，不依赖「admin-web 是唯一 listen 443 的 server 块」的隐式兜底）。

@@ -41,22 +41,22 @@ check '.dockerignore 放行构建所需的 .env（VITE_ 公共配置）' '.docke
 check '.dockerignore 放行构建所需的 .env.prod（同源 /api/admin 口径）' '.dockerignore' '^!\.env\.prod$'
 
 echo '== B. 多阶段镜像 =='
-check 'Dockerfile deps 阶段（pnpm workspace 依赖安装）' 'Dockerfile' '^FROM .* AS deps$'
-check 'Dockerfile builder 阶段（生产构建）' 'Dockerfile' '^FROM .* AS builder$'
-check 'Dockerfile 运行阶段基于 nginx' 'Dockerfile' '^FROM nginx'
-check 'Dockerfile 运行阶段只拷静态产物 dist' 'Dockerfile' 'COPY --from=builder .*/dist '
-check 'Dockerfile 拷入 nginx 配置模板' 'Dockerfile' 'default\.conf\.template'
-check 'Dockerfile 模板不放官方 envsubst 扫描目录（/etc/nginx/templates/）' 'Dockerfile' 'default\.conf\.template /etc/nginx/templates/' invert=1
-check 'Dockerfile 拷入启动注入脚本' 'Dockerfile' 'docker-entrypoint\.d'
-check 'Dockerfile 无旧 Next 残留' 'Dockerfile' '\.next|NEXT_TELEMETRY' invert=1
+check 'Dockerfile deps 阶段（pnpm workspace 依赖安装）' 'deploy/web.Dockerfile' '^FROM .* AS deps$'
+check 'Dockerfile builder 阶段（生产构建）' 'deploy/web.Dockerfile' '^FROM .* AS builder$'
+check 'Dockerfile 运行阶段基于 nginx' 'deploy/web.Dockerfile' '^FROM nginx'
+check 'Dockerfile 运行阶段只拷静态产物 dist' 'deploy/web.Dockerfile' 'COPY --from=builder .*/dist '
+check 'Dockerfile 拷入 nginx 配置模板' 'deploy/web.Dockerfile' 'default\.conf\.template'
+check 'Dockerfile 模板不放官方 envsubst 扫描目录（/etc/nginx/templates/）' 'deploy/web.Dockerfile' 'default\.conf\.template /etc/nginx/templates/' invert=1
+check 'Dockerfile 拷入启动注入脚本' 'deploy/web.Dockerfile' 'docker-entrypoint\.d'
+check 'Dockerfile 无旧 Next 残留' 'deploy/web.Dockerfile' '\.next|NEXT_TELEMETRY' invert=1
 
 echo '== C. Compose 生产编排 =='
-check 'compose 显式项目名' 'docker-compose.prod.yml' '^name: '
-check 'compose 显式镜像名' 'docker-compose.prod.yml' '^[[:space:]]+image: '
-check 'compose 容器名 semgravio-admin-web' 'docker-compose.prod.yml' '^[[:space:]]+container_name: semgravio-admin-web$'
-check 'compose 仅接入 external webnet' 'docker-compose.prod.yml' '^[[:space:]]+external: true$'
-check 'compose 无宿主端口映射' 'docker-compose.prod.yml' '^[[:space:]]+ports:' invert=1
-check 'compose 透传 BACKEND_URL' 'docker-compose.prod.yml' 'BACKEND_URL'
+check 'compose 显式项目名' 'deploy/web.compose.yml' '^name: '
+check 'compose 显式镜像名' 'deploy/web.compose.yml' '^[[:space:]]+image: '
+check 'compose 容器名 semgravio-admin-web' 'deploy/web.compose.yml' '^[[:space:]]+container_name: semgravio-admin-web$'
+check 'compose 仅接入 external webnet' 'deploy/web.compose.yml' '^[[:space:]]+external: true$'
+check 'compose 无宿主端口映射' 'deploy/web.compose.yml' '^[[:space:]]+ports:' invert=1
+check 'compose 经 env_file 注入 BACKEND_URL（../.env.production，相对 compose 文件解析）' 'deploy/web.compose.yml' '\.\./\.env\.production'
 
 echo '== D. nginx SPA 回退与代理 =='
 NGX_TMPL='deploy/nginx/default.conf.template'
@@ -77,11 +77,11 @@ check '拒绝携带 /api/admin 后缀的源站地址' "$ENTRY" '/api/admin'
 check '模板替换不消费 nginx 自身变量（sed 定点替换占位符）' "$ENTRY" 'sed .*__BACKEND_URL__'
 
 echo '== F. 服务器环境变量模板 =='
-check '服务器 env 模板存在且含 BACKEND_URL 规则说明' '.env.production.example' '^#.*BACKEND_URL'
+check '服务器 env 模板存在且含 BACKEND_URL 规则说明' 'deploy/env.web.example' '^#.*BACKEND_URL'
 
 echo '== G. 全部 shell 脚本语法 =='
-check_sh 'deploy.sh 语法' 'deploy.sh'
-check_sh 'publish.sh 语法' 'publish.sh'
+check_sh 'deploy/server.sh 语法' 'deploy/server.sh'
+check_sh 'deploy/release.sh 语法' 'deploy/release.sh'
 check_sh 'deploy/validate.sh 语法' 'deploy/validate.sh'
 
 echo '== H. 一键发布链路（#95） =='
@@ -95,7 +95,7 @@ check '打包走 git archive（已提交源码，恒 LF）' "$BUNDLE_SH" 'git .*
 check '打包秘密值排除断言（.env.production/certs/*.pem）' "$BUNDLE_SH" '\*\.pem.*\.env\.production|\.env\.production.*\*\.pem'
 check 'bundle 命名 admin-web-deploy-*' "$BUNDLE_SH" 'admin-web-deploy-'
 
-REL='publish.sh'
+REL='deploy/release.sh'
 check_sh '发布脚本语法（bash -n）' "$REL"
 check '默认目标 ubuntu@3.70.172.160' "$REL" 'SERVER_HOST="\$\{SERVER_HOST:-3\.70\.172\.160\}"'
 check '默认密钥沿用 aiplatform（semgravio-eu-1.pem）' "$REL" 'semgravio-eu-1\.pem'
@@ -104,8 +104,8 @@ check 'infra 目录 semgravio-infra（可覆盖）' "$REL" 'INFRA_DIR="\$\{INFRA
 check '前置检查含共享 nginx 健康' "$REL" 'semgravio-nginx'
 check '前置检查含 webnet' "$REL" 'docker network inspect webnet'
 check '前置检查含 BACKEND_URL 已填且源站口径' "$REL" 'BACKEND_URL='
-check '前置检查含证书 fullchain.pem' "$REL" 'fullchain\.pem'
-check '前置检查含私钥 privkey.pem' "$REL" 'privkey\.pem'
+check '前置检查含证书 admin.semgravio.com_bundle.pem' "$REL" 'admin\.semgravio\.com_bundle\.pem'
+check '前置检查含私钥 admin.semgravio.com.key' "$REL" 'admin\.semgravio\.com\.key'
 check '发布脚本含上传步骤（scp）' "$REL" 'scp -i'
 check 'SKIP_BUILD=1 复用现有包开关' "$REL" 'SKIP_BUILD'
 check '解包不覆盖现网 env 与证书（git archive 产物＋解包后现网输入复核）' "$REL" '解包后 .* 丢失'
@@ -113,7 +113,7 @@ check 'conf 与证书只经门禁安装' "$REL" 'install-nginx-conf\.sh'
 # 冒烟三断言（301/200/401）在 K 节对共用脚本 deploy/smoke-remote.sh 统一检查，此处不重复
 check '不触碰 PG/Redis/预览网络（无相关命令）' "$REL" 'pg_dump|semgravio-pg|semgravio-redis|previewnet' invert=1
 
-OPS='deploy.sh'
+OPS='deploy/server.sh'
 check_sh '运维脚本语法（bash -n）' "$OPS"
 check '运维入口 status 子命令' "$OPS" 'status\)'
 check '运维入口 logs 子命令' "$OPS" 'logs\)'
@@ -127,8 +127,8 @@ check '不声明 default_server（归 infra 兜底）' "$CONF" 'listen.*default_
 check 'server_name 单行书写（门禁契约）' "$CONF" '^    server_name admin\.semgravio\.com;$'
 check '80 统一跳转 HTTPS（301）' "$CONF" 'return 301 https://\$host\$request_uri;'
 check '443 TLS 终止' "$CONF" 'listen 443 ssl;'
-check '证书引用门禁安装路径 certs/admin-web/fullchain.pem' "$CONF" '/etc/nginx/certs/admin-web/fullchain\.pem'
-check '私钥引用门禁安装路径 certs/admin-web/privkey.pem' "$CONF" '/etc/nginx/certs/admin-web/privkey\.pem'
+check '证书引用门禁安装路径 certs/admin-web/admin.semgravio.com_bundle.pem' "$CONF" '/etc/nginx/certs/admin-web/admin\.semgravio\.com_bundle\.pem'
+check '私钥引用门禁安装路径 certs/admin-web/admin.semgravio.com.key' "$CONF" '/etc/nginx/certs/admin-web/admin\.semgravio\.com\.key'
 check '代理传递 Host' "$CONF" 'proxy_set_header Host \$host;'
 check '代理传递客户端 IP' "$CONF" 'proxy_set_header X-Real-IP \$remote_addr;'
 check '代理传递协议头' "$CONF" 'proxy_set_header X-Forwarded-Proto \$scheme;'
@@ -148,15 +148,15 @@ check '冒烟断言 HTTP→HTTPS 301' "$SMOKE" '"301"'
 check '冒烟断言 HTTPS 首页 200' "$SMOKE" '"200"'
 check '冒烟断言未登录当前用户 401' "$SMOKE" '"401"'
 check '运维冒烟与发布冒烟共用同一脚本（deploy.sh 侧）' "$OPS" 'smoke-remote\.sh'
-check '运维冒烟与发布冒烟共用同一脚本（publish.sh 侧）' "$REL" 'smoke-remote\.sh'
+check '运维冒烟与发布冒烟共用同一脚本（deploy/release.sh 侧）' "$REL" 'smoke-remote\.sh'
 check '未知子命令用法＋非零退出' "$OPS" 'exit 64'
 check '共享 conf 钉 eol=lf（.gitattributes）' '.gitattributes' '\*\.conf.*eol=lf'
 check '共享 conf 无 CRLF 残留' "$CONF" $'\r' invert=1
-DOC='docs/deploy/部署文档.md'
-check '手册列明全部运维子命令（status）' "$DOC" '\./deploy\.sh status'
-check '手册列明全部运维子命令（logs）' "$DOC" '\./deploy\.sh logs'
-check '手册列明全部运维子命令（restart）' "$DOC" '\./deploy\.sh restart'
-check '手册列明全部运维子命令（smoke）' "$DOC" '\./deploy\.sh smoke'
+DOC='deploy/部署文档.md'
+check '手册列明全部运维子命令（status）' "$DOC" 'deploy/server\.sh status'
+check '手册列明全部运维子命令（logs web）' "$DOC" 'deploy/server\.sh logs web'
+check '手册列明全部运维子命令（restart）' "$DOC" 'deploy/server\.sh restart'
+check '手册列明全部运维子命令（smoke）' "$DOC" 'deploy/server\.sh smoke'
 check '手册含证书私钥权限保护（chmod 600）' "$DOC" 'chmod 600'
 check '手册含 BACKEND_URL URI 原样转发示例' "$DOC" 'auth/login'
 check '手册含深层 history 路由检查' "$DOC" 'history 路由'

@@ -154,35 +154,41 @@
 admin-web 具备可部署生产形态。**只写部署物 + 静态契约检查，不构建镜像/不起栈/不连真实服务器**。
 
 - **生产基础地址 = 同源 `/api/admin`**（`.env.prod`，不再指 Apifox mock）；dev `.env.test` 不变。前端构建期把相对 baseURL 打进产物，运行时由容器内 nginx 反代——前端代码零改动。
-- **多阶段镜像**：`deps`（pnpm@10 workspace 全量依赖，`--frozen-lockfile`，需拷 `packages/*/package.json` 参与解析）→ `builder`（`pnpm build` = `vite build --mode prod`）→ `runner`（`nginx:1.27-alpine`，只拷 `dist` + 配置模板 + 启动注入脚本）。旧 Dockerfile 是 Next.js 模板残留（`.next`/`server.js`），整体作废。
+- **多阶段镜像** = `deploy/web.Dockerfile`：`deps`（pnpm@10 workspace 全量依赖，`--frozen-lockfile`，需拷 `packages/*/package.json` 参与解析）→ `builder`（`pnpm build` = `vite build --mode prod`）→ `runner`（`nginx:1.27-alpine`，只拷 `dist` + 配置模板 + 启动注入脚本）。旧根 Dockerfile 是 Next.js 模板残留（`.next`/`server.js`），整体作废。
 - **启动注入 `BACKEND_URL`**（`deploy/docker-entrypoint.d/30-backend-url.sh`，挂 nginx 官方 `/docker-entrypoint.d/`）：**源站口径**（`http(s)://主机[:端口]`，如 `http://semgravio-admin:8081`），**不含 `/api/admin`**（前缀由 nginx 保留转发，再带会拼成双前缀 404）。空值/占位值/带路径值**响亮失败**（exit 1，容器起不来）。替换用 `sed` 定点替换 `__BACKEND_URL__` 占位符——**不走 envsubst 全量模板机制**（会消费 `$uri` 等 nginx 自身变量）；模板因此放在官方 envsubst 扫描目录 `/etc/nginx/templates/` **之外**（`/etc/nginx/admin-web/`），官方 `20-envsubst-on-templates.sh` 不会先碰它。裸 `/api/admin`（无尾斜杠）精确匹配 404，不被 SPA 回退吞成 index.html。
 - **URI 保真 + Docker DNS 重解析**：`proxy_pass $backend_upstream;`（变量、**不带 URI 部分**）→ 原样转发完整原始 URI；配 `resolver 127.0.0.11`（Docker 内嵌 DNS）→ 上游容器重建后自动重解析。
 - **SPA 回退**：`location /` `try_files $uri $uri/ /index.html`；`location /assets/`（vite 哈希产物）`try_files $uri =404` + 长缓存——缺失资源不被吞成 200 的 index.html。
-- **compose.prod**：显式 `name:`/`image:`/`container_name: semgravio-admin-web`，`BACKEND_URL=${BACKEND_URL:-}` 透传给入口脚本判空，只接 external `webnet`，**无宿主端口映射**（对外由基础设施层反代），healthcheck `wget :80`。
-- **服务器 env 模板** = `.env.production.example`（`cp` 成 `.env.production` 后 `--env-file` 引用；只含非秘密拓扑变量）。`.dockerignore` 排 `dist`/`e2e`/`.env*`，**但 `!.env`/`!.env.prod` 必须放行**——vite `--mode prod` 构建期加载它们（`.env` 的 `VITE_BASE_URL` 等 + `.env.prod` 的 `/api/admin`），排除掉会让镜像产物 baseURL 为空（#94 review 抓出的真 bug）。`.gitattributes` 补 `*.sh`/`Dockerfile`/`*.template` `eol=lf`（CRLF 会炸容器内 `/bin/sh` 与 nginx 配置）。
+- **compose.prod** = `deploy/web.compose.yml`：显式 `name:`/`image:`/`container_name: semgravio-admin-web`，`BACKEND_URL` 经 `env_file: ../.env.production` 注入（路径相对 compose 文件解析；`--env-file` CLI 相对项目目录解析、compose 移入 deploy/ 后会落空，故弃用），只接 external `webnet`，**无宿主端口映射**（对外由基础设施层反代），healthcheck `wget :80`。
+- **服务器 env 模板** = `deploy/env.web.example`（scp/cp 成应用根 `.env.production`，compose `env_file` 引用；只含非秘密拓扑变量）。`.dockerignore` 排 `dist`/`e2e`/`.env*`，**但 `!.env`/`!.env.prod` 必须放行**——vite `--mode prod` 构建期加载它们（`.env` 的 `VITE_BASE_URL` 等 + `.env.prod` 的 `/api/admin`），排除掉会让镜像产物 baseURL 为空（#94 review 抓出的真 bug）。`.gitattributes` 补 `*.sh`/`Dockerfile`/`*.template` `eol=lf`（CRLF 会炸容器内 `/bin/sh` 与 nginx 配置）。
 - **静态契约检查** = `deploy/validate.sh`（`bash deploy/validate.sh`，只读仓库文件）：A 基础地址 / B 多阶段镜像 / C compose 编排 / D nginx 回退与代理 / E 注入脚本守卫 / F env 模板 / G 全部 shell `bash -n`。后续改部署物跑它回归。
 
 ### 2026-11-04 一键 HTTPS 发布链路（#95，承接 #94 部署物）
 
 admin-web 发布链路齐备。**本票只写脚本/配置/文档 + 静态验证，未上传、未构建、未起栈、未装 nginx 配置**；首次真实发布等用户确认（`BACKEND_URL` 真实值亦待用户提供）。
 
-- **一键发布 = 根 `publish.sh`**（重写 legacy 明文密码脚本，旧脚本随旧 Next 形态整体作废）：阶段 `== 0..5/6 ==` 任败即非零退出——本地密钥 → SSH 连通 → **远端前置**（semgravio-nginx 健康 / webnet / `~/semgravio-admin-web/.env.production` 的 BACKEND_URL 源站口径 / `certs/fullchain.pem`+`privkey.pem` / 门禁脚本在场；**在上传与构建之前**，缺项零改动）→ 打包 → scp → 远端解包 → `compose up -d --build` → 门禁安装 → 就绪等待 → 冒烟。
-- **打包 = `deploy/build-bundle.sh`**：同 aiplatform 模式——`git archive HEAD`（恒 LF、跨 Windows Git Bash）、`REVISION` 记录 HEAD、脏工作区默认拒绝（`ALLOW_DIRTY=1` 逃生＋醒目警告）、秘密值排除断言（`.env.production`/`certs/`/`*.pem` 命中即中止）；产物 `dist/admin-web-deploy-<戳>.tar.gz`，末行打印包路径（`publish.sh` 约定）。开发机零构建依赖——pnpm 安装与 vite build 都在服务器侧多阶段镜像里跑。
-- **共享 nginx 接入 = `deploy/nginx/admin-web.conf`**：80 `return 301 https://$host$request_uri;`；443 TLS（证书引用门禁安装路径 `/etc/nginx/certs/admin-web/{fullchain,privkey}.pem`）；代理 `semgravio-admin-web:80` 变量形式 + `resolver 127.0.0.11 valid=5s`（infra nginx 1.30 支持同 http 块多 resolver，与 aiplatform.conf 各声明各的）；Host/X-Real-IP/X-Forwarded-For/X-Forwarded-Proto 全传递；不声明 default_server、server_name 单行（门禁契约）。安装唯一通道 = infra 门禁 `install-nginx-conf.sh admin-web <conf> <certs 目录>`（撞车即拒/语法门禁/失败回滚，conf.d 挂载热更）。**首个 TLS 接入服务**（aiplatform 只 listen 80）。
+- **一键发布 = `deploy/release.sh`**（重写 legacy 明文密码脚本，旧脚本随旧 Next 形态整体作废）：阶段 `== 0..5/6 ==` 任败即非零退出——本地密钥 → SSH 连通 → **远端前置**（semgravio-nginx 健康 / webnet / `~/semgravio-admin-web/.env.production` 的 BACKEND_URL 源站口径 / `deploy/certs/admin.semgravio.com_bundle.pem`+`admin.semgravio.com.key` / 门禁脚本在场；**在上传与构建之前**，缺项零改动）→ 打包 → scp → 远端解包 → `compose up -d --build` → 门禁安装 → 就绪等待 → 冒烟。
+- **打包 = `deploy/build-bundle.sh`**：同 aiplatform 模式——`git archive HEAD`（恒 LF、跨 Windows Git Bash）、`REVISION` 记录 HEAD、脏工作区默认拒绝（`ALLOW_DIRTY=1` 逃生＋醒目警告）、秘密值排除断言（`.env.production`/`certs/`/`*.pem` 命中即中止）；产物 `dist/admin-web-deploy-<戳>.tar.gz`，末行打印包路径（`deploy/release.sh` 约定）。开发机零构建依赖——pnpm 安装与 vite build 都在服务器侧多阶段镜像里跑。
+- **共享 nginx 接入 = `deploy/nginx/admin-web.conf`**：80 `return 301 https://$host$request_uri;`；443 TLS（证书引用门禁安装路径 `/etc/nginx/certs/admin-web/{admin.semgravio.com_bundle.pem,admin.semgravio.com.key}（沿用证书商原文件名，无需改名）`）；代理 `semgravio-admin-web:80` 变量形式 + `resolver 127.0.0.11 valid=5s`（infra nginx 1.30 支持同 http 块多 resolver，与 aiplatform.conf 各声明各的）；Host/X-Real-IP/X-Forwarded-For/X-Forwarded-Proto 全传递；不声明 default_server、server_name 单行（门禁契约）。安装唯一通道 = infra 门禁 `install-nginx-conf.sh admin-web <conf> <certs 目录>`（撞车即拒/语法门禁/失败回滚，conf.d 挂载热更）。**首个 TLS 接入服务**（aiplatform 只 listen 80）。
 - **冒烟断言（如实报告实际码）**：HTTP `/` = 301 且 Location 指 https；HTTPS `/` = 200；未登录 `GET /api/admin/auth/current` = **401**（正向鉴权证据，其他值一律判失败）。
-- **运维入口 = 根 `deploy.sh`**（重写 legacy）：`status/logs/restart/smoke/sh` 子命令（restart 不重建镜像；nginx 配置更新统一走发布门禁）。连接参数与 `publish.sh` 同套默认（`ubuntu@3.70.172.160` + `semgravio-eu-1.pem`），`SERVER_HOST/SERVER_USER/SSH_KEY/REMOTE_DIR/INFRA_DIR` 可覆盖。
-- **复用包发布** `SKIP_BUILD=1 ./publish.sh`（取 `dist/` 最新包）；**解包不覆盖现网输入**（git archive 产物天然无 env/证书 + 解包后三项现网输入复核）。
-- **部署文档 = `docs/deploy/部署文档.md`**（中文）：角色与目录 / 服务器前置输入 / 一键发布 / 幂等与边界 / 运维 / 静态验证 / 换证书；明确区分「静态验证零副作用」与「真实发布须用户确认」。
+- **运维入口 = `deploy/server.sh`**（重写 legacy）：`status/logs web/restart/smoke/sh` 子命令（restart 不重建镜像；nginx 配置更新统一走发布门禁）。连接参数与 `deploy/release.sh` 同套默认（`ubuntu@3.70.172.160` + `semgravio-eu-1.pem`），`SERVER_HOST/SERVER_USER/SSH_KEY/REMOTE_DIR/INFRA_DIR` 可覆盖。
+- **复用包发布** `SKIP_BUILD=1 deploy/release.sh`（取 `dist/` 最新包）；**解包不覆盖现网输入**（git archive 产物天然无 env/证书 + 解包后三项现网输入复核）。
+- **部署文档 = `deploy/部署文档.md`**（中文）：角色与目录 / 服务器前置输入 / 一键发布 / 幂等与边界 / 运维 / 静态验证 / 换证书；明确区分「静态验证零副作用」与「真实发布须用户确认」。
 
 ### 2026-11-04 运维入口收口 + 中文部署手册（#96，承接 #95 链路）
 
 #95 未提交产物随本票一并落地。**只写脚本/文档 + 静态验证，未执行任何真实服务器操作**。
 
-- **冒烟断言单一事实源 = `deploy/smoke-remote.sh`**：301 跳转 / HTTPS 首页 200 / 未登录 `/api/admin/auth/current` 401 三项外部断言只维护一份——`deploy.sh smoke`（ssh `bash -s` 喂入）与 `publish.sh` 阶段 5（解包后跑同文件）共用。判定面从「localhost + Host 头」改为 **真实 SNI**（`curl --resolve admin.semgravio.com:443:127.0.0.1`）——不再依赖「admin-web 是唯一 443 server 块」的隐式兜底（infra 日后加任何 443 块居先即静默炸 TLS 的隐患，#95 review 抓出）。
-- **运维入口收口**：`deploy.sh` 未知子命令打印用法 + **exit 64**（原 exit 0）；`help`/无参仍 0。restart 语义不变（只重建容器运行状态、不重建镜像；nginx 配置/证书更新统一走 publish.sh 门禁）。
-- **#95 review 修复三处**：① publish.sh 阶段标号 0..5/5（六阶段）→ **/6**；② 阶段 5 信息性 `docker ps | grep` 在 `set -e` 远端 heredoc 里 grep 无匹配会先于冒烟结论中断 → `|| true`；③ `.gitattributes` 补 `*.conf eol=lf`（`admin-web.conf` 裸漏，CRLF 会炸 nginx——#94 条目自己写明过的坑）。
-- **中文手册重写**（`docs/deploy/部署文档.md`）：前置条件（开发机零构建依赖/服务器 infra 已起栈/SSH 默认参数与覆盖）→ 一次性输入（BACKEND_URL 源站口径 + **URI 原样转发示例**、证书 `chmod 600` 权限保护）→ 发布（脏工作区门禁/SKIP_BUILD）→ **首次验收**（冒烟三项 + 深层 history 路由 curl 核验 + 浏览器登录人工步骤如实补记）→ 重复发布/换证书/运维子命令/常见失败排查表。明确：证书、私钥、服务器环境值、**部署包**均不得提交 Git；基础设施不由本仓部署；静态实施与真实发布边界。
+- **冒烟断言单一事实源 = `deploy/smoke-remote.sh`**：301 跳转 / HTTPS 首页 200 / 未登录 `/api/admin/auth/current` 401 三项外部断言只维护一份——`deploy/server.sh smoke`（ssh `bash -s` 喂入）与 `deploy/release.sh` 阶段 5（解包后跑同文件）共用。判定面从「localhost + Host 头」改为 **真实 SNI**（`curl --resolve admin.semgravio.com:443:127.0.0.1`）——不再依赖「admin-web 是唯一 443 server 块」的隐式兜底（infra 日后加任何 443 块居先即静默炸 TLS 的隐患，#95 review 抓出）。
+- **运维入口收口**：`deploy/server.sh` 未知子命令打印用法 + **exit 64**（原 exit 0）；`help`/无参仍 0。restart 语义不变（只重建容器运行状态、不重建镜像；nginx 配置/证书更新统一走 deploy/release.sh 门禁）。
+- **#95 review 修复三处**：① deploy/release.sh 阶段标号 0..5/5（六阶段）→ **/6**；② 阶段 5 信息性 `docker ps | grep` 在 `set -e` 远端 heredoc 里 grep 无匹配会先于冒烟结论中断 → `|| true`；③ `.gitattributes` 补 `*.conf eol=lf`（`admin-web.conf` 裸漏，CRLF 会炸 nginx——#94 条目自己写明过的坑）。
+- **中文手册重写**（`deploy/部署文档.md`）：前置条件（开发机零构建依赖/服务器 infra 已起栈/SSH 默认参数与覆盖）→ 一次性输入（BACKEND_URL 源站口径 + **URI 原样转发示例**、证书 `chmod 600` 权限保护）→ 发布（脏工作区门禁/SKIP_BUILD）→ **首次验收**（冒烟三项 + 深层 history 路由 curl 核验 + 浏览器登录人工步骤如实补记）→ 重复发布/换证书/运维子命令/常见失败排查表。明确：证书、私钥、服务器环境值、**部署包**均不得提交 Git；基础设施不由本仓部署；静态实施与真实发布边界。
 - **静态验证扩 K 节**（#96）：冒烟脚本语法/SNI/三断言、两处共用同一脚本、`exit 64`、conf eol=lf + 无 CRLF、手册逐项覆盖（子命令/chmod 600/URI 示例/深层路由/部署包不入 Git/infra 边界/静真边界）。H 节冒烟断言改指共用脚本。`bash deploy/validate.sh` 全绿（A–K）。
+
+### 2026-11-04 部署物收编 deploy/ 单目录（对齐 aiplatform 布局，用户拍板）
+
+- **全部部署物归 `deploy/` 单目录**（同 aiplatform）：根 `Dockerfile`→`deploy/web.Dockerfile`、`docker-compose.prod.yml`→`deploy/web.compose.yml`、`docker-compose.dev.yml`→`deploy/web-dev.compose.yml`、`.env.production.example`→`deploy/env.web.example`、手册 `docs/deploy/`→`deploy/部署文档.md`。一键发布 `deploy/release.sh`＋运维 `deploy/server.sh` 收编原根 `publish.sh`/`deploy.sh`（项目模板残留，删除；入口名对齐 aiplatform）。
+- **仓库根保留三件＝前端特殊性**（用户接受）：`.env`/`.env.prod`（Vite 约定构建配置必须居根）、`.dockerignore`（构建上下文＝仓库根——pnpm workspace 需全仓源码，aiplatform 的 web 只需子目录）。
+- **证书沿用证书商原文件名**（用户拍板，不做改名约定）：`admin.semgravio.com_bundle.pem` / `admin.semgravio.com.key`；`.dockerignore` 补 `deploy/certs`（防私钥进 build context），`.gitignore` `certs/`/`*.pem` 拦截入仓。
 
 ### 2026-09-16 AI 平台六域页面 grilling（admin-web #56，消费 admin BFF aiplatform 34 端点；后端已就绪 admin#62/#63–73）
 

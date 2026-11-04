@@ -1,10 +1,11 @@
-# 管理后台前端 - 本地开发 Docker Compose 配置（#94 后与新 Dockerfile 对齐：nginx 静态站点）
+# 管理后台前端 - 本地开发容器自验（对齐 aiplatform 布局，非日常开发入口）
 # 仅用于本地起容器自验；日常开发直接 pnpm dev（端口 3001）。
+# 用法：docker compose -f deploy/web-dev.compose.yml up --build -d
 services:
   app:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/web.Dockerfile
     image: semgravio-admin-web:dev
     container_name: semgravio-admin-web-dev
     ports:

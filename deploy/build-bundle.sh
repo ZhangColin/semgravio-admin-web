@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 组装自包含部署包：dist/admin-web-deploy-<时间戳>.tar.gz（跨平台：macOS ＋ Windows Git Bash）
-# 在开发机仓库根执行：deploy/build-bundle.sh；末行打印包路径（publish.sh 依赖该约定）。
-# 产物结构（scp 到服务器 ~/semgravio-admin-web 解包，publish.sh 一键链路自动完成）：
-#   <仓库全量源码树>   git archive HEAD 导出（pnpm workspace 构建上下文：Dockerfile 多阶段
+# 在开发机仓库根执行：deploy/build-bundle.sh；末行打印包路径（deploy/release.sh 依赖该约定）。
+# 产物结构（scp 到服务器 ~/semgravio-admin-web 解包，deploy/release.sh 一键链路自动完成）：
+#   <仓库全量源码树>   git archive HEAD 导出（pnpm workspace 构建上下文：deploy/web.Dockerfile 多阶段
 #                     构建在服务器侧跑 pnpm install + vite build，开发机零构建依赖）
 #   REVISION           打包时的 git HEAD revision
 #
