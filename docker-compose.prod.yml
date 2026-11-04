@@ -1,14 +1,22 @@
-# 管理后台前端 - 生产环境 Docker Compose 配置
+# 管理后台前端 - 生产环境 Docker Compose 配置（#94）
+# 使用方法：服务器上先按 .env.production.example 填好 BACKEND_URL，再
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+# 应用容器只接入共享 webnet，不映射宿主端口；对外服务由基础设施层反代。
+name: semgravio-admin-web
+
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    image: semgravio-admin-web:latest
     container_name: semgravio-admin-web
     environment:
-      - BACKEND_URL=${BACKEND_URL:-http://semgravio-admin:8081}
+      # admin 后端 BFF 源站（webnet 容器名直连，如 http://semgravio-admin:8081）。
+      # 源站口径：不含 /api/admin（前缀由容器内 nginx 保留转发）；空值/占位值会在容器启动时失败。
+      - BACKEND_URL=${BACKEND_URL:-}
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3

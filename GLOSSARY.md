@@ -149,6 +149,19 @@
 
 > 通过 `/grill-with-docs` 逐条结晶。已定稿的迁移至 `docs/adr/`。
 
+### 2026-11-04 生产部署形态：SPA 静态容器 + 同源 BFF 反代（#94）
+
+admin-web 具备可部署生产形态。**只写部署物 + 静态契约检查，不构建镜像/不起栈/不连真实服务器**。
+
+- **生产基础地址 = 同源 `/api/admin`**（`.env.prod`，不再指 Apifox mock）；dev `.env.test` 不变。前端构建期把相对 baseURL 打进产物，运行时由容器内 nginx 反代——前端代码零改动。
+- **多阶段镜像**：`deps`（pnpm@10 workspace 全量依赖，`--frozen-lockfile`，需拷 `packages/*/package.json` 参与解析）→ `builder`（`pnpm build` = `vite build --mode prod`）→ `runner`（`nginx:1.27-alpine`，只拷 `dist` + 配置模板 + 启动注入脚本）。旧 Dockerfile 是 Next.js 模板残留（`.next`/`server.js`），整体作废。
+- **启动注入 `BACKEND_URL`**（`deploy/docker-entrypoint.d/30-backend-url.sh`，挂 nginx 官方 `/docker-entrypoint.d/`）：**源站口径**（`http(s)://主机[:端口]`，如 `http://semgravio-admin:8081`），**不含 `/api/admin`**（前缀由 nginx 保留转发，再带会拼成双前缀 404）。空值/占位值/带路径值**响亮失败**（exit 1，容器起不来）。替换用 `sed` 定点替换 `__BACKEND_URL__` 占位符——**不走 envsubst 全量模板机制**（会消费 `$uri` 等 nginx 自身变量）；模板因此放在官方 envsubst 扫描目录 `/etc/nginx/templates/` **之外**（`/etc/nginx/admin-web/`），官方 `20-envsubst-on-templates.sh` 不会先碰它。裸 `/api/admin`（无尾斜杠）精确匹配 404，不被 SPA 回退吞成 index.html。
+- **URI 保真 + Docker DNS 重解析**：`proxy_pass $backend_upstream;`（变量、**不带 URI 部分**）→ 原样转发完整原始 URI；配 `resolver 127.0.0.11`（Docker 内嵌 DNS）→ 上游容器重建后自动重解析。
+- **SPA 回退**：`location /` `try_files $uri $uri/ /index.html`；`location /assets/`（vite 哈希产物）`try_files $uri =404` + 长缓存——缺失资源不被吞成 200 的 index.html。
+- **compose.prod**：显式 `name:`/`image:`/`container_name: semgravio-admin-web`，`BACKEND_URL=${BACKEND_URL:-}` 透传给入口脚本判空，只接 external `webnet`，**无宿主端口映射**（对外由基础设施层反代），healthcheck `wget :80`。
+- **服务器 env 模板** = `.env.production.example`（`cp` 成 `.env.production` 后 `--env-file` 引用；只含非秘密拓扑变量）。`.dockerignore` 排 `dist`/`e2e`/`.env*`，**但 `!.env`/`!.env.prod` 必须放行**——vite `--mode prod` 构建期加载它们（`.env` 的 `VITE_BASE_URL` 等 + `.env.prod` 的 `/api/admin`），排除掉会让镜像产物 baseURL 为空（#94 review 抓出的真 bug）。`.gitattributes` 补 `*.sh`/`Dockerfile`/`*.template` `eol=lf`（CRLF 会炸容器内 `/bin/sh` 与 nginx 配置）。
+- **静态契约检查** = `deploy/validate.sh`（`bash deploy/validate.sh`，只读仓库文件）：A 基础地址 / B 多阶段镜像 / C compose 编排 / D nginx 回退与代理 / E 注入脚本守卫 / F env 模板 / G 全部 shell `bash -n`。后续改部署物跑它回归。
+
 ### 2026-09-16 AI 平台六域页面 grilling（admin-web #56，消费 admin BFF aiplatform 34 端点；后端已就绪 admin#62/#63–73）
 
 admin 仓 aiplatform BFF 已全量落地（`/api/admin/aiplatform/**` 34 端点，忠实透传 provider `/api/backoffice/**`），菜单 V15 已种、前端无页。本票 grill 拍板 UI 形态与联调口径，逐域按 matt 流程拆票实现（不分批）。

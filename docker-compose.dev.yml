@@ -1,17 +1,14 @@
-# 管理后台前端 - 本地开发 Docker Compose 配置
+# 管理后台前端 - 本地开发 Docker Compose 配置（#94 后与新 Dockerfile 对齐：nginx 静态站点）
+# 仅用于本地起容器自验；日常开发直接 pnpm dev（端口 3001）。
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    image: semgravio-admin-web:dev
     container_name: semgravio-admin-web-dev
     ports:
-      - "3001:3001"
+      - "3001:80"
     environment:
+      # 本机直连宿主上的 admin 后端（:8081 带 /api/admin 上下文，由容器内 nginx 保留转发）
       - BACKEND_URL=http://host.docker.internal:8081
-    networks:
-      - webnet
-
-networks:
-  webnet:
-    external: true
